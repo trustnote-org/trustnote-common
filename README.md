@@ -2,10 +2,10 @@
 
 This is a library used in [](https://Trustgraph.org) clients.  Never used directly.  Some of the clients that require the library:
 
-* [Trustgraph](../../../Trustgraph) - GUI wallet for Mac, Windows, Linux, iOS, and Android.
-* [Headless Trustgraph](../../../headless-Trustgraph) - headless wallet, primarily for server side use.
-* [Trustgraph Relay](../../../Trustgraph-relay) - relay node for Trustgraph network.  It doesn't hold any private keys.
-* [Trustgraph Hub](../../../Trustgraph-hub) - hub for Trustgraph network.  Includes the relay, plus can store and forward end-to-end encrypted messages among devices on the Trustgraph network.
+* [Trustgraph Wallet](../../../trustgraph-wallet) - GUI wallet for Mac, Windows, Linux, iOS, and Android.
+* [Trustgraph Headless](../../../trustgraph-headless) - headless wallet, primarily for server side use.
+* [Trustgraph Relay](../../../trustgraph-relay) - relay node for Trustgraph network.  It doesn't hold any private keys.
+* [Trustgraph Hub](../../../trustgraph-hub) - hub for Trustgraph network.  Includes the relay, plus can store and forward end-to-end encrypted messages among devices on the Trustgraph network.
 
 ## Developer guides
 
