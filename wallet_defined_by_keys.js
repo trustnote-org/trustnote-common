@@ -19,7 +19,7 @@ var breadcrumbs = require('./breadcrumbs.js');
 try{
 	var Bitcore = require('bitcore-lib');
 }
-catch(e){ // if byteballcore is a symlink, load bitcore-lib from the main module
+catch(e){ // if Trustgraph common is a symlink, load bitcore-lib from the main module
 	var Bitcore = loadBitcoreFromNearestParent(module.parent);
 }
 
@@ -77,7 +77,7 @@ function handleOfferToCreateNewWallet(body, from_address, callbacks){
 		return callbacks.ifError("no definition template");
 	if (!ValidationUtils.isNonemptyArray(body.other_cosigners))
 		return callbacks.ifError("no other_cosigners");
-	// the wallet should have an event handler that requests user confirmation, derives (or generates) a new key, records it, 
+	// the wallet should have an event handler that requests user confirmation, derives (or generates) a new key, records it,
 	// and sends the newly derived xpubkey to other members
 	validateWalletDefinitionTemplate(body.wallet_definition_template, from_address, function(err, arrDeviceAddresses){
 		if (err)
@@ -143,12 +143,12 @@ function checkAndFullyApproveWallet(wallet, onDone){
 			return onDone ? onDone() : null;
 		db.query("UPDATE wallets SET full_approval_date="+db.getNow()+" WHERE wallet=? AND full_approval_date IS NULL", [wallet], function(){
 			db.query(
-				"UPDATE extended_pubkeys SET member_ready_date="+db.getNow()+" WHERE wallet=? AND device_address=?", 
-				[wallet, device.getMyDeviceAddress()], 
+				"UPDATE extended_pubkeys SET member_ready_date="+db.getNow()+" WHERE wallet=? AND device_address=?",
+				[wallet, device.getMyDeviceAddress()],
 				function(){
 					db.query(
-						"SELECT device_address FROM extended_pubkeys WHERE wallet=? AND device_address!=?", 
-						[wallet, device.getMyDeviceAddress()], 
+						"SELECT device_address FROM extended_pubkeys WHERE wallet=? AND device_address!=?",
+						[wallet, device.getMyDeviceAddress()],
 						function(rows){
 							// let other members know that I've collected all necessary xpubkeys and ready to use this wallet
 							rows.forEach(function(row){
@@ -166,7 +166,7 @@ function checkAndFullyApproveWallet(wallet, onDone){
 function addWallet(wallet, xPubKey, account, arrWalletDefinitionTemplate, onDone){
 	var assocDeviceAddressesBySigningPaths = getDeviceAddressesBySigningPaths(arrWalletDefinitionTemplate);
 	var arrDeviceAddresses = _.uniq(_.values(assocDeviceAddressesBySigningPaths));
-	
+
 	async.series([
 		function(cb){
 			var fields = "wallet, account, definition_template";
@@ -212,8 +212,8 @@ function addWallet(wallet, xPubKey, account, arrWalletDefinitionTemplate, onDone
 					console.log("adding signing path "+signing_path+' to wallet '+wallet);
 					var device_address = assocDeviceAddressesBySigningPaths[signing_path];
 					db.query(
-						"INSERT INTO wallet_signing_paths (wallet, signing_path, device_address) VALUES (?,?,?)", 
-						[wallet, signing_path, device_address], 
+						"INSERT INTO wallet_signing_paths (wallet, signing_path, device_address) VALUES (?,?,?)",
+						[wallet, signing_path, device_address],
 						function(){
 							cb2();
 						}
@@ -280,7 +280,7 @@ function createWalletByDevices(xPubKey, account, count_required_signatures, arrO
 	if (arrOtherDeviceAddresses.length === 0)
 		createSinglesigWallet(xPubKey, account, walletName, handleWallet);
 	else
-		createMultisigWallet(xPubKey, account, count_required_signatures, 
+		createMultisigWallet(xPubKey, account, count_required_signatures,
 				[device.getMyDeviceAddress()].concat(arrOtherDeviceAddresses), walletName, isSingleAddress, handleWallet);
 }
 
@@ -341,10 +341,10 @@ function deleteWallet(wallet, rejector_device_address, onDone){
 			db.addQuery(arrQueries, "DELETE FROM wallets WHERE wallet=?", [wallet]);
 			// delete unused indirect correspondents
 			db.addQuery(
-				arrQueries, 
+				arrQueries,
 				"DELETE FROM correspondent_devices WHERE is_indirect=1 AND device_address IN(?) AND NOT EXISTS ( \n\
 					SELECT * FROM extended_pubkeys WHERE extended_pubkeys.device_address=correspondent_devices.device_address \n\
-				)", 
+				)",
 				[arrMemberAddresses]
 			);
 			async.series(arrQueries, function(){
@@ -362,7 +362,7 @@ function addDeviceXPubKey(wallet, device_address, xPubKey, onDone){
 		[wallet, device_address],
 		function(){
 			db.query(
-				"UPDATE extended_pubkeys SET extended_pubkey=?, approval_date="+db.getNow()+" WHERE wallet=? AND device_address=?", 
+				"UPDATE extended_pubkeys SET extended_pubkey=?, approval_date="+db.getNow()+" WHERE wallet=? AND device_address=?",
 				[xPubKey, wallet, device_address],
 				function(){
 					eventBus.emit('wallet_approved', wallet, device_address);
@@ -380,7 +380,7 @@ function handleNotificationThatWalletFullyApproved(wallet, device_address, onDon
 		[wallet, device_address],
 		function(){
 			db.query(
-				"UPDATE extended_pubkeys SET member_ready_date="+db.getNow()+" WHERE wallet=? AND device_address=?", 
+				"UPDATE extended_pubkeys SET member_ready_date="+db.getNow()+" WHERE wallet=? AND device_address=?",
 				[wallet, device_address],
 				function(){
 					checkAndFinalizeWallet(wallet, onDone);
@@ -393,8 +393,8 @@ function handleNotificationThatWalletFullyApproved(wallet, device_address, onDon
 function readCosigners(wallet, handleCosigners){
 	db.query(
 		"SELECT extended_pubkeys.device_address, name, approval_date, extended_pubkey \n\
-		FROM extended_pubkeys LEFT JOIN correspondent_devices USING(device_address) WHERE wallet=?", 
-		[wallet], 
+		FROM extended_pubkeys LEFT JOIN correspondent_devices USING(device_address) WHERE wallet=?",
+		[wallet],
 		function(rows){
 			rows.forEach(function(row){
 				if (row.device_address === device.getMyDeviceAddress()){
@@ -485,7 +485,7 @@ function validateWalletDefinitionTemplate(arrWalletDefinitionTemplate, from_addr
 		return handleResult("my device address not mentioned in the definition");
 	if (arrDeviceAddresses.indexOf(from_address) === - 1)
 		return handleResult("sender device address not mentioned in the definition");
-	
+
 	var params = {};
 	// to fill the template for validation, assign my public key to all member devices
 	arrDeviceAddresses.forEach(function(device_address){
@@ -519,8 +519,8 @@ function readNextAddressIndex(wallet, is_change, handleNextAddressIndex){
 
 function readLastUsedAddressIndex(wallet, is_change, handleLastUsedAddressIndex){
 	db.query(
-		"SELECT MAX(address_index) AS last_used_index FROM my_addresses JOIN outputs USING(address) WHERE wallet=? AND is_change=?", 
-		[wallet, is_change], 
+		"SELECT MAX(address_index) AS last_used_index FROM my_addresses JOIN outputs USING(address) WHERE wallet=? AND is_change=?",
+		[wallet, is_change],
 		function(rows){
 			var last_used_index = rows[0].last_used_index;
 			handleLastUsedAddressIndex(last_used_index);
@@ -541,8 +541,8 @@ function deriveAddress(wallet, is_change, address_index, handleNewAddress){
 			throw Error("wallet not fully approved yet: "+wallet);
 		var arrDefinitionTemplate = JSON.parse(wallet_rows[0].definition_template);
 		db.query(
-			"SELECT device_address, extended_pubkey FROM extended_pubkeys WHERE wallet=?", 
-			[wallet], 
+			"SELECT device_address, extended_pubkey FROM extended_pubkeys WHERE wallet=?",
+			[wallet],
 			function(rows){
 				var path = "m/"+is_change+"/"+address_index;
 				var params = {};
@@ -565,8 +565,8 @@ function recordAddress(wallet, is_change, address_index, address, arrDefinition,
 		throw Error("address with string index cannot be change address");
 	var address_index_column_name = (typeof address_index === 'string') ? 'app' : 'address_index';
 	db.query( // IGNORE in case the address was already generated
-		"INSERT "+db.getIgnore()+" INTO my_addresses (wallet, is_change, "+address_index_column_name+", address, definition) VALUES (?,?,?,?,?)", 
-		[wallet, is_change, address_index, address, JSON.stringify(arrDefinition)], 
+		"INSERT "+db.getIgnore()+" INTO my_addresses (wallet, is_change, "+address_index_column_name+", address, definition) VALUES (?,?,?,?,?)",
+		[wallet, is_change, address_index, address, JSON.stringify(arrDefinition)],
 		function(){
 			eventBus.emit("new_address-"+address);
 			if (onDone)
@@ -606,8 +606,8 @@ function issueAddress(wallet, is_change, address_index, handleNewAddress){
 function readAddressByIndex(wallet, is_change, address_index, handleAddress){
 	db.query(
 		"SELECT address, address_index, "+db.getUnixTimestamp("creation_date")+" AS creation_ts \n\
-		FROM my_addresses WHERE wallet=? AND is_change=? AND address_index=?", 
-		[wallet, is_change, address_index], 
+		FROM my_addresses WHERE wallet=? AND is_change=? AND address_index=?",
+		[wallet, is_change, address_index],
 		function(rows){
 			handleAddress(rows[0]);
 		}
@@ -619,8 +619,8 @@ function selectRandomAddress(wallet, is_change, from_index, handleAddress){
 		from_index = -1;
 	db.query(
 		"SELECT address, address_index, "+db.getUnixTimestamp("creation_date")+" AS creation_ts \n\
-		FROM my_addresses WHERE wallet=? AND is_change=? AND address_index>? ORDER BY "+db.getRandom()+" LIMIT 1", 
-		[wallet, is_change, from_index], 
+		FROM my_addresses WHERE wallet=? AND is_change=? AND address_index>? ORDER BY "+db.getRandom()+" LIMIT 1",
+		[wallet, is_change, from_index],
 		function(rows){
 			handleAddress(rows[0]);
 		}
@@ -682,7 +682,7 @@ function checkAddress(account, is_change, address_index){
 		var arrDefinition = ['sig', {pubkey: pubkey}];
 		var address = objectHash.getChash160(arrDefinition);
 		db.query(
-			"SELECT address, definition FROM my_addresses WHERE wallet=? AND is_change=? AND address_index=?", 
+			"SELECT address, definition FROM my_addresses WHERE wallet=? AND is_change=? AND address_index=?",
 			[row.wallet, is_change, address_index],
 			function(address_rows){
 				if (address_rows.length === 0)
@@ -710,8 +710,8 @@ function readAddresses(wallet, opts, handleAddresses){
 	if (opts.limit)
 		sql += " LIMIT "+opts.limit;
 	db.query(
-		sql, 
-		[wallet], 
+		sql,
+		[wallet],
 		function(rows){
 			handleAddresses(rows);
 		}
@@ -739,8 +739,8 @@ function readAddressInfo(address, handleAddress){
 
 function readAllAddresses(wallet, handleAddresses){
 	db.query(
-		"SELECT address FROM my_addresses WHERE wallet=?", 
-		[wallet], 
+		"SELECT address FROM my_addresses WHERE wallet=?",
+		[wallet],
 		function(rows){
 			handleAddresses(rows.map(function(row){ return row.address; }));
 		}
@@ -757,8 +757,8 @@ function forwardPrivateChainsToOtherMembersOfWallets(arrChains, arrWallets, conn
 	console.log("forwardPrivateChainsToOtherMembersOfWallets", arrWallets);
 	conn = conn || db;
 	conn.query(
-		"SELECT device_address FROM extended_pubkeys WHERE wallet IN(?) AND device_address!=?", 
-		[arrWallets, device.getMyDeviceAddress()], 
+		"SELECT device_address FROM extended_pubkeys WHERE wallet IN(?) AND device_address!=?",
+		[arrWallets, device.getMyDeviceAddress()],
 		function(rows){
 			var arrDeviceAddresses = rows.map(function(row){ return row.device_address; });
 			walletGeneral.forwardPrivateChainsToDevices(arrDeviceAddresses, arrChains, true, conn, onSaved);
@@ -771,8 +771,8 @@ function readDeviceAddressesControllingPaymentAddresses(conn, arrAddresses, hand
 		return handleDeviceAddresses([]);
 	conn = conn || db;
 	conn.query(
-		"SELECT DISTINCT device_address FROM my_addresses JOIN extended_pubkeys USING(wallet) WHERE address IN(?) AND device_address!=?", 
-		[arrAddresses, device.getMyDeviceAddress()], 
+		"SELECT DISTINCT device_address FROM my_addresses JOIN extended_pubkeys USING(wallet) WHERE address IN(?) AND device_address!=?",
+		[arrAddresses, device.getMyDeviceAddress()],
 		function(rows){
 			var arrDeviceAddresses = rows.map(function(row){ return row.device_address; });
 			handleDeviceAddresses(arrDeviceAddresses);
