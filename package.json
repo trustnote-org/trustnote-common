@@ -1,5 +1,5 @@
 {
-  "name": "trustgraph common",
+  "name": "trustgraph-common",
   "description": "Trustgraph Common",
   "author": "Trustgraph",
   "version": "0.2.60",
@@ -10,7 +10,7 @@
   "homepage": "https://gitee.com/trustgraph/trustgraph-common",
   "license": "MIT",
   "repository": {
-    "url": "git://gitee.com/trustgraph/trustgraph-common.git",
+    "url": "https://gitee.com/trustgraph/trustgraph-common.git",
     "type": "git"
   },
   "bugs": {
