@@ -811,6 +811,8 @@ exports.readExternalAddresses = readExternalAddresses;
 exports.readChangeAddresses = readChangeAddresses;
 exports.readAddressInfo = readAddressInfo;
 
+exports.readAllAddresses = readAllAddresses; //zhangtao add 
+
 exports.forwardPrivateChainsToOtherMembersOfWallets = forwardPrivateChainsToOtherMembersOfWallets;
 
 exports.readDeviceAddressesControllingPaymentAddresses = readDeviceAddressesControllingPaymentAddresses;
