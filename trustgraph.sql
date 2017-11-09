@@ -80,10 +80,12 @@ CREATE TABLE unit_authors (
 	unit CHAR(44) BINARY NOT NULL,
 	address CHAR(32) NOT NULL,
 	definition_chash CHAR(32) NULL, -- only with 1st ball from this address, and with next ball after definition change
+	_mci INT NULL,
 	PRIMARY KEY (unit, address),
 	FOREIGN KEY byUnit(unit) REFERENCES units(unit),
 	CONSTRAINT unitAuthorsByAddress FOREIGN KEY byAddress(address) REFERENCES addresses(address),
 	KEY unitAuthorsIndexByAddressDefinitionChash (address, definition_chash),
+	KEY unitAuthorsIndexByAddressMci (address, _mci),
 	FOREIGN KEY byDefinition(definition_chash) REFERENCES definitions(definition_chash)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
@@ -252,7 +254,7 @@ CREATE TABLE asset_denominations (
 CREATE TABLE asset_attestors (
 	unit CHAR(44) BINARY NOT NULL,
 	message_index TINYINT NOT NULL,
-	asset CHAR(44) BINARY NOT NULL, -- in the initial attestor list: same as unit 
+	asset CHAR(44) BINARY NOT NULL, -- in the initial attestor list: same as unit
 	attestor_address CHAR(32) NOT NULL,
 	PRIMARY KEY (unit, message_index),
 	UNIQUE KEY byAssetAttestorUnit(asset, attestor_address, unit),
@@ -291,7 +293,7 @@ CREATE TABLE inputs (
 	CONSTRAINT inputsByAddress FOREIGN KEY byAddress(address) REFERENCES addresses(address),
 	CONSTRAINT inputsByAsset FOREIGN KEY byAsset(asset) REFERENCES assets(unit)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-	
+
 CREATE TABLE outputs (
 	output_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	unit CHAR(44) BINARY NOT NULL,
@@ -571,7 +573,7 @@ CREATE TABLE wallet_signing_paths (
 --    FOREIGN KEY byDeviceAddress(device_address) REFERENCES correspondent_devices(device_address)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
--- addresses composed of several other addresses (such as ["and", [["address", "ADDRESS1"], ["address", "ADDRESS2"]]]), 
+-- addresses composed of several other addresses (such as ["and", [["address", "ADDRESS1"], ["address", "ADDRESS2"]]]),
 -- member addresses live on different devices, member addresses themselves may be composed of several keys
 CREATE TABLE shared_addresses (
 	shared_address CHAR(32) NOT NULL PRIMARY KEY,
@@ -638,8 +640,8 @@ ALTER TABLE `units` ADD INDEX `bySequence` (`sequence`);
 DROP TABLE IF EXISTS paid_witness_events;
 
 CREATE TABLE IF NOT EXISTS push_registrations (
-    registrationId VARCHAR(200), 
-    device_address CHAR(33) NOT NULL, 
+    registrationId VARCHAR(200),
+    device_address CHAR(33) NOT NULL,
     PRIMARY KEY (device_address)
 );
 

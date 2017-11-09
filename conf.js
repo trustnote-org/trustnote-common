@@ -33,7 +33,7 @@ exports.port = null;
 // Connects through socks v5 proxy without auth, WS_PROTOCOL has to be 'wss'
 // exports.socksHost = 'localhost';
 // exports.socksPort = 9050;
-// For better security you should not use local DNS with socks proxy
+// For better security you should not use local DNS with socks proxy 
 // exports.socksLocalDNS = false;
 
 // WebSocket protocol prefixed to all hosts.  Must be wss:// on livenet, ws:// is allowed on testnet
@@ -59,11 +59,11 @@ exports.database = {};
 
 
 /*
-There are 3 ways to customize conf in modules that use trustgraph-common lib:
+There are 3 ways to customize conf in modules that use byteballcore lib:
 1. drop a custom conf.js into the project root.  The code below will find it and merge.  Will not work under browserify.
 2. drop a custom conf.json into the app's data dir inside the user's home dir.  The code below will find it and merge.  Will not work under browserify.
 3. require() this conf and modify it:
-var conf = require('trustgraph-common/conf.js');
+var conf = require('byteballcore/conf.js');
 conf.custom_property = 'custom value';
 You should do it as early as possible during your app's startup.
 The later require()s of this conf will see the modified version.
@@ -72,7 +72,7 @@ This way is not recommended as the code becomes loading order dependent.
 
 if (typeof window === 'undefined' || !window.cordova){ // desktop
 	var desktopApp = require('./desktop_app.js'+'');
-
+	
 	// merge conf from other modules that include us as lib.  The other module must place its custom conf.js into its root directory
 	var appRootDir = desktopApp.getAppRootDir();
 	var appPackageJson = require(appRootDir + '/package.json');
@@ -89,7 +89,7 @@ if (typeof window === 'undefined' || !window.cordova){ // desktop
 	}
 	else
 		console.log("I'm already at the root");
-
+	
 	// merge conf from user home directory, if any.
 	// Note that it is json rather than js to avoid code injection
 	var appDataDir = desktopApp.getAppDataDir();

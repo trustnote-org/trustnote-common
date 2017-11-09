@@ -79,12 +79,14 @@ CREATE TABLE unit_authors (
 	unit CHAR(44) NOT NULL,
 	address CHAR(32) NOT NULL,
 	definition_chash CHAR(32) NULL, -- only with 1st ball from this address, and with next ball after definition change
+	_mci INT NULL,
 	PRIMARY KEY (unit, address),
 	FOREIGN KEY (unit) REFERENCES units(unit),
 	FOREIGN KEY (definition_chash) REFERENCES definitions(definition_chash)
 );
 CREATE INDEX byDefinitionChash ON unit_authors(definition_chash);
 CREATE INDEX unitAuthorsIndexByAddress ON unit_authors(address);
+CREATE INDEX unitAuthorsIndexByAddressMci ON unit_authors(address, _mci);
 
 
 CREATE TABLE authentifiers (
@@ -250,7 +252,7 @@ CREATE TABLE asset_denominations (
 CREATE TABLE asset_attestors (
 	unit CHAR(44) NOT NULL,
 	message_index TINYINT NOT NULL,
-	asset CHAR(44) NOT NULL, -- in the initial attestor list: same as unit 
+	asset CHAR(44) NOT NULL, -- in the initial attestor list: same as unit
 	attestor_address CHAR(32) NOT NULL,
 	PRIMARY KEY (unit, message_index),
 	UNIQUE (asset, attestor_address, unit),
@@ -573,7 +575,7 @@ CREATE TABLE wallet_signing_paths (
 );
 
 
--- addresses composed of several other addresses (such as ["and", [["address", "ADDRESS1"], ["address", "ADDRESS2"]]]), 
+-- addresses composed of several other addresses (such as ["and", [["address", "ADDRESS1"], ["address", "ADDRESS2"]]]),
 -- member addresses live on different devices, member addresses themselves may be composed of several keys
 CREATE TABLE shared_addresses (
 	shared_address CHAR(32) NOT NULL PRIMARY KEY,
@@ -639,8 +641,8 @@ CREATE INDEX "bySequence" ON "units" ("sequence");
 DROP TABLE IF EXISTS paid_witness_events;
 
 CREATE TABLE IF NOT EXISTS push_registrations (
-    registrationId TEXT, 
-    device_address TEXT NOT NULL, 
+    registrationId TEXT,
+    device_address TEXT NOT NULL,
     PRIMARY KEY (device_address)
 );
 
