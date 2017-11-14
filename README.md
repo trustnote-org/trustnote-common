@@ -27,7 +27,7 @@ This is the list of some of the settings that the library understands (your app 
 
 #### conf.port
 
-The port to listen on.  If you don't want to accept incoming connections at all, set port to `null`, which is the default.  If you do want to listen, you will usually have a proxy, such as nginx, accept websocket connections on standard port 443 and forward them to your Trustgraph daemon that listens on port 6611 on the local interface.
+The port to listen on.  If you don't want to accept incoming connections at all, set port to `null`, which is the default.  If you do want to listen, you will usually have a proxy, such as nginx, accept websocket connections on standard port 443 and forward them to your Trustgraph daemon that listens on port 6655 on the local interface.
 
 #### conf.storage
 
@@ -35,7 +35,7 @@ Storage backend -- mysql or sqlite, the default is sqlite.  If sqlite, the datab
 
 ```json
 {
-	"port": 6611,
+	"port": 6655,
 	"storage": "mysql",
 	"database": {
 		"max_connections": 30,
@@ -74,7 +74,7 @@ To lower disk load and increase sync speed, you can optionally disable flushing 
 
 Trustgraph network works over secure WebSocket protocol wss://.  To accept incoming connections, you'll need a valid TLS certificate (you can get a free one from [letsencrypt.org](https://letsencrypt.org)) and a domain name (you can get a free domain from [Freenom](http://www.freenom.com/)).  Then you accept connections on standard port 443 and proxy them to your locally running Trustgraph daemon.
 
-This is an example configuration for nginx to accept websocket connections at wss://Trustgraph.one/bb and forward them to locally running daemon that listens on port 6611:
+This is an example configuration for nginx to accept websocket connections at wss://Trustgraph.one/bb and forward them to locally running daemon that listens on port 6655:
 
 ```nginx
 server {
@@ -93,7 +93,7 @@ server {
 	}
 
 	location = /bb {
-		proxy_pass http://localhost:6611;
+		proxy_pass http://localhost:6655;
 		proxy_http_version 1.1;
 		proxy_set_header X-Real-IP $remote_addr;
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

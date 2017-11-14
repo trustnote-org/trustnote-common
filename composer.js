@@ -124,8 +124,8 @@ function pickDivisibleCoinsForAmount(conn, objAsset, arrAddresses, last_ball_mci
 			CROSS JOIN units USING(unit) \n\
 			WHERE address IN(?) AND asset"+(asset ? "="+conn.escape(asset) : " IS NULL")+" AND is_spent=0 \n\
 				AND is_stable=1 AND sequence='good' AND main_chain_index<=?  \n\
-			ORDER BY amount DESC LIMIT ?",
-			[arrSpendableAddresses, last_ball_mci, constants.MAX_INPUTS_PER_PAYMENT_MESSAGE-2],
+			ORDER BY amount DESC",
+			[arrSpendableAddresses, last_ball_mci],
 			function(rows){
 				async.eachSeries(
 					rows,
@@ -653,11 +653,7 @@ function composeJoint(params){
 			var naked_payload_commission = objectLength.getTotalPayloadSize(objUnit); // without input coins
 
 			if (bGenesis){
-				var issueInput = {type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES};
-				if (objUnit.authors.length > 1) {
-					issueInput.address = arrWitnesses[0];
-				}
-				objPaymentMessage.payload.inputs = [issueInput];
+				objPaymentMessage.payload.inputs = [{type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES, address: arrWitnesses[0]}];
 				objUnit.payload_commission = objectLength.getTotalPayloadSize(objUnit);
 				total_input = constants.TOTAL_WHITEBYTES;
 				return cb();

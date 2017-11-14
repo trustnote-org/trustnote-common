@@ -227,13 +227,11 @@ function includesMyDeviceAddress(assocSignersByPath){
 
 // Checks if any of my payment addresses is mentioned.
 // It is possible that my device address is not mentioned in the definition if I'm a member of multisig address, one of my cosigners is mentioned instead
-function determineIfIncludesMeAndRewriteDeviceAddress(assocSignersByPath, handleResult){
+function determineIfIncludesMe(assocSignersByPath, handleResult){
 	var assocMemberAddresses = {};
-	var bHasMyDeviceAddress = false;
 	for (var signing_path in assocSignersByPath){
 		var signerInfo = assocSignersByPath[signing_path];
-		if (signerInfo.device_address === device.getMyDeviceAddress())
-			bHasMyDeviceAddress = true;
+	//	if (signerInfo.device_address === device.getMyDeviceAddress())
 		if (signerInfo.address)
 			assocMemberAddresses[signerInfo.address] = true;
 	}
@@ -241,24 +239,11 @@ function determineIfIncludesMeAndRewriteDeviceAddress(assocSignersByPath, handle
 	if (arrMemberAddresses.length === 0)
 		return handleResult("no member addresses?");
 	db.query(
-		"SELECT address, 'my' AS type FROM my_addresses WHERE address IN(?) \n\
-		UNION \n\
-		SELECT shared_address AS address, 'shared' AS type FROM shared_addresses WHERE shared_address IN(?)", 
+		"SELECT address FROM my_addresses WHERE address IN(?) UNION SELECT shared_address AS address FROM shared_addresses WHERE shared_address IN(?)", 
 		[arrMemberAddresses, arrMemberAddresses],
 		function(rows){
 		//	handleResult(rows.length === arrMyMemberAddresses.length ? null : "Some of my member addresses not found");
-			if (rows.length === 0)
-				handleResult("I am not a member of this shared address");
-			var arrMyMemberAddresses = rows.filter(function(row){ return (row.type === 'my'); }).map(function(row){ return row.address; });
-			// rewrite device address for my addresses
-			if (!bHasMyDeviceAddress){
-				for (var signing_path in assocSignersByPath){
-					var signerInfo = assocSignersByPath[signing_path];
-					if (signerInfo.address && arrMyMemberAddresses.indexOf(signerInfo.address) >= 0)
-						signerInfo.device_address = device.getMyDeviceAddress();
-				}
-			}
-			handleResult();
+			handleResult(rows.length > 0 ? null : "I am not a member of this shared address");
 		}
 	);
 }
@@ -297,7 +282,7 @@ function handleNewSharedAddress(body, callbacks){
 		if (signerInfo.address && !ValidationUtils.isValidAddress(signerInfo.address))
 			return callbacks.ifError("invalid member address: "+signerInfo.address);
 	}
-	determineIfIncludesMeAndRewriteDeviceAddress(body.signers, function(err){
+	determineIfIncludesMe(body.signers, function(err){
 		if (err)
 			return callbacks.ifError(err);
 		validateAddressDefinition(body.definition, function(err){
@@ -397,7 +382,7 @@ function validateAddressDefinitionTemplate(arrDefinitionTemplate, from_address, 
 	}
 	var objFakeUnit = {authors: [{address: fake_address, definition: ["sig", {pubkey: device.getMyDevicePubKey()}]}]};
 	var objFakeValidationState = {last_ball_mci: MAX_INT32};
-	Definition.validateDefinition(db, arrFakeDefinition, objFakeUnit, objFakeValidationState, null, false, function(err){
+	Definition.validateDefinition(db, arrFakeDefinition, objFakeUnit, objFakeValidationState, false, function(err){
 		if (err)
 			return handleResult(err);
 		handleResult(null, assocMemberDeviceAddressesBySigningPaths);
@@ -409,7 +394,7 @@ function validateAddressDefinitionTemplate(arrDefinitionTemplate, from_address, 
 function validateAddressDefinition(arrDefinition, handleResult){
 	var objFakeUnit = {authors: []};
 	var objFakeValidationState = {last_ball_mci: MAX_INT32, bAllowUnresolvedInnerDefinitions: true};
-	Definition.validateDefinition(db, arrDefinition, objFakeUnit, objFakeValidationState, null, false, function(err){
+	Definition.validateDefinition(db, arrDefinition, objFakeUnit, objFakeValidationState, false, function(err){
 		if (err)
 			return handleResult(err);
 		handleResult();
@@ -424,30 +409,20 @@ function forwardPrivateChainsToOtherMembersOfAddresses(arrChains, arrAddresses, 
 		[arrAddresses, device.getMyDeviceAddress()], 
 		function(rows){
 			console.log("shared address devices: "+rows.length);
-			var arrDeviceAddresses = rows.map(function(row){ return row.device_address; });
-			walletGeneral.forwardPrivateChainsToDevices(arrDeviceAddresses, arrChains, true, conn, onSaved);
+			async.eachSeries(
+				rows,
+				function(row, cb){
+					console.log("forwarding to device "+row.device_address);
+					walletGeneral.sendPrivatePayments(row.device_address, arrChains, true, conn, cb);
+				},
+				function(){
+					if (onSaved)
+						onSaved();
+				}
+			);
 		}
 	);
 }
-
-function readAllControlAddresses(conn, arrAddresses, handleLists){
-	conn = conn || db;
-	conn.query(
-		"SELECT DISTINCT address, shared_address_signing_paths.device_address, (correspondent_devices.device_address IS NOT NULL) AS have_correspondent \n\
-		FROM shared_address_signing_paths LEFT JOIN correspondent_devices USING(device_address) WHERE shared_address IN(?)", 
-		[arrAddresses], 
-		function(rows){
-			if (rows.length === 0)
-				return handleLists([], []);
-			var arrControlAddresses = rows.map(function(row){ return row.address; });
-			var arrControlDeviceAddresses = rows.filter(function(row){ return row.have_correspondent; }).map(function(row){ return row.device_address; });
-			readAllControlAddresses(conn, arrControlAddresses, function(arrControlAddresses2, arrControlDeviceAddresses2){
-				handleLists(_.union(arrControlAddresses, arrControlAddresses2), _.union(arrControlDeviceAddresses, arrControlDeviceAddresses2));
-			});
-		}
-	);
-}
-
 
 /*
 function readRequiredCosigners(shared_address, arrSigningDeviceAddresses, handleCosigners){
@@ -476,47 +451,18 @@ function readSharedAddressDefinition(shared_address, handleDefinition){
 	);
 }
 
-// returns information about cosigner devices
 function readSharedAddressCosigners(shared_address, handleCosigners){
 	db.query(
-		"SELECT DISTINCT shared_address_signing_paths.device_address, name, "+db.getUnixTimestamp("shared_addresses.creation_date")+" AS creation_ts \n\
+		"SELECT DISTINCT device_address, name, "+db.getUnixTimestamp("shared_addresses.creation_date")+" AS creation_ts \n\
 		FROM shared_address_signing_paths \n\
+		JOIN correspondent_devices USING(device_address) \n\
 		JOIN shared_addresses USING(shared_address) \n\
-		LEFT JOIN correspondent_devices USING(device_address) \n\
 		WHERE shared_address=? AND device_address!=?",
 		[shared_address, device.getMyDeviceAddress()],
 		function(rows){
-			if (rows.length === 0)
-				throw Error("no cosigners found for shared address "+shared_address);
 			handleCosigners(rows);
 		}
 	);
-}
-
-// returns list of payment addresses of peers
-function readSharedAddressPeerAddresses(shared_address, handlePeerAddresses){
-	db.query(
-		"SELECT DISTINCT address FROM shared_address_signing_paths WHERE shared_address=? AND device_address!=?",
-		[shared_address, device.getMyDeviceAddress()],
-		function(rows){
-			// no problem if no peers found: the peer can be part of our multisig address and his device address will be rewritten to ours
-		//	if (rows.length === 0)
-		//		throw Error("no peers found for shared address "+shared_address);
-			var arrPeerAddresses = rows.map(function(row){ return row.address; });
-			handlePeerAddresses(arrPeerAddresses);
-		}
-	);
-}
-
-function getPeerAddressesFromSigners(assocSignersByPath){
-	var assocPeerAddresses = {};
-	for (var path in assocSignersByPath){
-		var signerInfo = assocSignersByPath[path];
-		if (signerInfo.device_address !== device.getMyDeviceAddress())
-			assocPeerAddresses[signerInfo.address] = true;
-	}
-	var arrPeerAddresses = Object.keys(assocPeerAddresses);
-	return arrPeerAddresses;
 }
 
 function determineIfHasMerkle(shared_address, handleResult){
@@ -539,10 +485,7 @@ exports.validateAddressDefinition = validateAddressDefinition;
 exports.handleNewSharedAddress = handleNewSharedAddress;
 exports.forwardPrivateChainsToOtherMembersOfAddresses = forwardPrivateChainsToOtherMembersOfAddresses;
 exports.readSharedAddressCosigners = readSharedAddressCosigners;
-exports.readSharedAddressPeerAddresses = readSharedAddressPeerAddresses;
-exports.getPeerAddressesFromSigners = getPeerAddressesFromSigners;
 exports.readSharedAddressDefinition = readSharedAddressDefinition;
 exports.determineIfHasMerkle = determineIfHasMerkle;
 exports.createNewSharedAddress = createNewSharedAddress;
 exports.createNewSharedAddressByTemplate = createNewSharedAddressByTemplate;
-exports.readAllControlAddresses = readAllControlAddresses;

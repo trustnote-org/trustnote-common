@@ -762,8 +762,6 @@ function handleResponseToJointRequest(ws, request, response){
 	if (!response.joint){
 		var unit = request.params;
 		if (response.joint_not_found === unit){
-			if (conf.bLight) // we trust the light vendor that if it doesn't know about the unit after 1 day, it doesn't exist
-				db.query("DELETE FROM unhandled_private_payments WHERE unit=? AND creation_date<"+db.addTime('-1 DAY'), [unit]);
 			if (!bCatchingUp)
 				return console.log("unit "+unit+" does not exist"); // if it is in unhandled_joints, it'll be deleted in 1 hour
 			//	return purgeDependenciesAndNotifyPeers(unit, "unit "+unit+" does not exist");
@@ -1270,29 +1268,25 @@ function notifyLightClientsAboutStableJoints(from_mci, to_mci){
 
 function notifyLocalWatchedAddressesAboutStableJoints(mci){
 	function handleRows(rows){
-		if (rows.length > 0){
+		if (rows.length > 0)
 			eventBus.emit('my_transactions_became_stable', rows.map(function(row){ return row.unit; }));
-			rows.forEach(function(row){
-				eventBus.emit('my_stable-'+row.unit);
-			});
-		}
 	}
 	if (arrWatchedAddresses.length > 0)
 		db.query(
-			"SELECT unit FROM units JOIN unit_authors USING(unit) WHERE main_chain_index=? AND address IN(?) AND sequence='good' \n\
+			"SELECT unit FROM units JOIN unit_authors USING(unit) WHERE main_chain_index=? AND address IN(?) \n\
 			UNION \n\
-			SELECT unit FROM units JOIN outputs USING(unit) WHERE main_chain_index=? AND address IN(?) AND sequence='good'",
+			SELECT unit FROM units JOIN outputs USING(unit) WHERE main_chain_index=? AND address IN(?)",
 			[mci, arrWatchedAddresses, mci, arrWatchedAddresses],
 			handleRows
 		);
 	db.query(
-		"SELECT unit FROM units JOIN unit_authors USING(unit) JOIN my_addresses USING(address) WHERE main_chain_index=? AND sequence='good' \n\
+		"SELECT unit FROM units JOIN unit_authors USING(unit) JOIN my_addresses USING(address) WHERE main_chain_index=? \n\
 		UNION \n\
-		SELECT unit FROM units JOIN outputs USING(unit) JOIN my_addresses USING(address) WHERE main_chain_index=? AND sequence='good' \n\
+		SELECT unit FROM units JOIN outputs USING(unit) JOIN my_addresses USING(address) WHERE main_chain_index=? \n\
 		UNION \n\
-		SELECT unit FROM units JOIN unit_authors USING(unit) JOIN shared_addresses ON address=shared_address WHERE main_chain_index=? AND sequence='good' \n\
+		SELECT unit FROM units JOIN unit_authors USING(unit) JOIN shared_addresses ON address=shared_address WHERE main_chain_index=? \n\
 		UNION \n\
-		SELECT unit FROM units JOIN outputs USING(unit) JOIN shared_addresses ON address=shared_address WHERE main_chain_index=? AND sequence='good'",
+		SELECT unit FROM units JOIN outputs USING(unit) JOIN shared_addresses ON address=shared_address WHERE main_chain_index=?",
 		[mci, mci, mci, mci],
 		handleRows
 	);
@@ -1363,10 +1357,7 @@ function findAndHandleJointsThatAreReady(unit){
 function comeOnline(){
 	bCatchingUp = false;
 	coming_online_time = Date.now();
-	waitTillIdle(function(){
-		requestFreeJointsFromAllOutboundPeers();
-		setTimeout(cleanBadSavedPrivatePayments, 300*1000);
-	});
+	waitTillIdle(requestFreeJointsFromAllOutboundPeers);
 	eventBus.emit('catching_up_done');
 }
 
@@ -1709,24 +1700,6 @@ function deleteHandledPrivateChain(unit, message_index, output_index, cb){
 	});
 }
 
-// full only
-function cleanBadSavedPrivatePayments(){
-	if (conf.bLight || bCatchingUp)
-		return;
-	db.query(
-		"SELECT DISTINCT unhandled_private_payments.unit FROM unhandled_private_payments LEFT JOIN units USING(unit) \n\
-		WHERE units.unit IS NULL AND unhandled_private_payments.creation_date<"+db.addTime('-1 DAY'),
-		function(rows){
-			rows.forEach(function(row){
-				breadcrumbs.add('deleting bad saved private payment '+row.unit);
-				db.query("DELETE FROM unhandled_private_payments WHERE unit=?", [row.unit]);
-			});
-		}
-	);
-	
-}
-
-// light only
 function rerequestLostJointsOfPrivatePayments(){
 	if (!conf.bLight || !exports.light_vendor_url)
 		return;
@@ -2211,7 +2184,7 @@ function handleRequest(ws, tag, command, params){
 				var arr = version.split('.');
 				return arr[0]*10000 + arr[1]*100 + arr[2]*1;
 			}
-			if (typeof ws.library_version === 'string' && version2int(ws.library_version) < version2int('0.2.61')){
+			if (typeof ws.library_version === 'string' && version2int(ws.library_version) < version2int('0.2.22')){
 				sendErrorResponse(ws, tag, "old core");
 				return ws.close(1000, "old core");
 			}
@@ -2248,38 +2221,26 @@ function handleRequest(ws, tag, command, params){
 			
 		case 'catchup':
 			var catchupRequest = params;
-			mutex.lock(['catchup_request'], function(unlock){
-				if (!ws || ws.readyState !== ws.OPEN) // may be already gone when we receive the lock
-					return process.nextTick(unlock);
-				catchup.prepareCatchupChain(catchupRequest, {
-					ifError: function(error){
-						sendErrorResponse(ws, tag, error);
-						unlock();
-					},
-					ifOk: function(objCatchupChain){
-						sendResponse(ws, tag, objCatchupChain);
-						unlock();
-					}
-				});
+			catchup.prepareCatchupChain(catchupRequest, {
+				ifError: function(error){
+					sendErrorResponse(ws, tag, error);
+				},
+				ifOk: function(objCatchupChain){
+					sendResponse(ws, tag, objCatchupChain);
+				}
 			});
 			break;
 			
 		case 'get_hash_tree':
 			var hashTreeRequest = params;
-			mutex.lock(['get_hash_tree_request'], function(unlock){
-				if (!ws || ws.readyState !== ws.OPEN) // may be already gone when we receive the lock
-					return process.nextTick(unlock);
-				catchup.readHashTree(hashTreeRequest, {
-					ifError: function(error){
-						sendErrorResponse(ws, tag, error);
-						unlock();
-					},
-					ifOk: function(arrBalls){
-						// we have to wrap arrBalls into an object because the peer will check .error property first
-						sendResponse(ws, tag, {balls: arrBalls});
-						unlock();
-					}
-				});
+			catchup.readHashTree(hashTreeRequest, {
+				ifError: function(error){
+					sendErrorResponse(ws, tag, error);
+				},
+				ifOk: function(arrBalls){
+					// we have to wrap arrBalls into an object because the peer will check .error property first
+					sendResponse(ws, tag, {balls: arrBalls});
+				}
 			});
 			break;
 			
@@ -2319,10 +2280,7 @@ function handleRequest(ws, tag, command, params){
 			// if i'm always online and i'm my own hub
 			if (bToMe){
 				sendResponse(ws, tag, "accepted");
-				eventBus.emit("message_from_hub", ws, 'hub/message', {
-					message_hash: objectHash.getBase64Hash(objDeviceMessage),
-					message: objDeviceMessage
-				});
+				eventBus.emit("message_from_hub", ws, 'hub/message', objDeviceMessage);
 				return;
 			}
 			
@@ -2379,7 +2337,7 @@ function handleRequest(ws, tag, command, params){
 			if (!ws.device_address)
 				return sendErrorResponse(ws, tag, "please log in first");
 			var objTempPubkey = params;
-			if (!objTempPubkey || !objTempPubkey.temp_pubkey || !objTempPubkey.pubkey || !objTempPubkey.signature)
+			if (!objTempPubkey.temp_pubkey || !objTempPubkey.pubkey || !objTempPubkey.signature)
 				return sendErrorResponse(ws, tag, "no temp_pubkey params");
 			if (objTempPubkey.temp_pubkey.length !== constants.PUBKEY_LENGTH)
 				return sendErrorResponse(ws, tag, "wrong temp_pubkey length");
@@ -2405,39 +2363,33 @@ function handleRequest(ws, tag, command, params){
 				return sendErrorResponse(ws, tag, "I'm light myself, can't serve you");
 			if (ws.bOutbound)
 				return sendErrorResponse(ws, tag, "light clients have to be inbound");
-			mutex.lock(['get_history_request'], function(unlock){
-				if (!ws || ws.readyState !== ws.OPEN) // may be already gone when we receive the lock
-					return process.nextTick(unlock);
-				light.prepareHistory(params, {
-					ifError: function(err){
-						sendErrorResponse(ws, tag, err);
-						unlock();
-					},
-					ifOk: function(objResponse){
-						sendResponse(ws, tag, objResponse);
-						if (params.addresses)
-							db.query(
-								"INSERT "+db.getIgnore()+" INTO watched_light_addresses (peer, address) VALUES "+
-								params.addresses.map(function(address){ return "("+db.escape(ws.peer)+", "+db.escape(address)+")"; }).join(", ")
-							);
-						if (params.requested_joints) {
-							storage.sliceAndExecuteQuery("SELECT unit FROM units WHERE main_chain_index >= ? AND unit IN(?)",
-								[storage.getMinRetrievableMci(), params.requested_joints], params.requested_joints, function(rows) {
-								if(rows.length) {
-									db.query(
-										"INSERT " + db.getIgnore() + " INTO watched_light_units (peer, unit) VALUES " +
-										rows.map(function(row) {
-											return "(" + db.escape(ws.peer) + ", " + db.escape(row.unit) + ")";
-										}).join(", ")
-									);
-								}
-							});
-						}
-						//db.query("INSERT "+db.getIgnore()+" INTO light_peer_witnesses (peer, witness_address) VALUES "+
-						//    params.witnesses.map(function(address){ return "("+db.escape(ws.peer)+", "+db.escape(address)+")"; }).join(", "));
-						unlock();
+			light.prepareHistory(params, {
+				ifError: function(err){
+					sendErrorResponse(ws, tag, err);
+				},
+				ifOk: function(objResponse){
+					sendResponse(ws, tag, objResponse);
+					if (params.addresses)
+						db.query(
+							"INSERT "+db.getIgnore()+" INTO watched_light_addresses (peer, address) VALUES "+
+							params.addresses.map(function(address){ return "("+db.escape(ws.peer)+", "+db.escape(address)+")"; }).join(", ")
+						);
+					if (params.requested_joints) {
+						storage.sliceAndExecuteQuery("SELECT unit FROM units WHERE main_chain_index >= ? AND unit IN(?)",
+							[storage.getMinRetrievableMci(), params.requested_joints], params.requested_joints, function(rows) {
+							if(rows.length) {
+								db.query(
+									"INSERT " + db.getIgnore() + " INTO watched_light_units (peer, unit) VALUES " +
+									rows.map(function(row) {
+										return "(" + db.escape(ws.peer) + ", " + db.escape(row.unit) + ")";
+									}).join(", ")
+								);
+							}
+						});
 					}
-				});
+					//db.query("INSERT "+db.getIgnore()+" INTO light_peer_witnesses (peer, witness_address) VALUES "+
+					//    params.witnesses.map(function(address){ return "("+db.escape(ws.peer)+", "+db.escape(address)+")"; }).join(", "));
+				}
 			});
 			break;
 			
@@ -2446,19 +2398,13 @@ function handleRequest(ws, tag, command, params){
 				return sendErrorResponse(ws, tag, "I'm light myself, can't serve you");
 			if (ws.bOutbound)
 				return sendErrorResponse(ws, tag, "light clients have to be inbound");
-			mutex.lock(['get_link_proofs_request'], function(unlock){
-				if (!ws || ws.readyState !== ws.OPEN) // may be already gone when we receive the lock
-					return process.nextTick(unlock);
-				light.prepareLinkProofs(params, {
-					ifError: function(err){
-						sendErrorResponse(ws, tag, err);
-						unlock();
-					},
-					ifOk: function(objResponse){
-						sendResponse(ws, tag, objResponse);
-						unlock();
-					}
-				});
+			light.prepareLinkProofs(params, {
+				ifError: function(err){
+					sendErrorResponse(ws, tag, err);
+				},
+				ifOk: function(objResponse){
+					sendResponse(ws, tag, objResponse);
+				}
 			});
 			break;
 			
@@ -2467,8 +2413,6 @@ function handleRequest(ws, tag, command, params){
 				return sendErrorResponse(ws, tag, "I'm light myself, can't serve you");
 			if (ws.bOutbound)
 				return sendErrorResponse(ws, tag, "light clients have to be inbound");
-			if (!params)
-				return sendErrorResponse(ws, tag, "no params in get_parents_and_last_ball_and_witness_list_unit");
 			light.prepareParentsAndLastBallAndWitnessListUnit(params.witnesses, {
 				ifError: function(err){
 					sendErrorResponse(ws, tag, err);
@@ -2507,7 +2451,7 @@ function onWebsocketMessage(message) {
 	if (ws.readyState !== ws.OPEN)
 		return;
 	
-	console.log('RECEIVED '+(message.length > 1000 ? message.substr(0,1000)+'... ('+message.length+' chars)' : message)+' from '+ws.peer);
+	console.log('RECEIVED '+(message.length > 1000 ? message.substr(0,1000)+'...' : message)+' from '+ws.peer);
 	ws.last_ts = Date.now();
 	
 	try{
@@ -2671,10 +2615,6 @@ function isConnected(){
 	return (arrOutboundPeers.length + wss.clients.length);
 }
 
-function isCatchingUp(){
-	return bCatchingUp;
-}
-
 start();
 
 exports.start = start;
@@ -2706,4 +2646,3 @@ exports.addLightWatchedAddress = addLightWatchedAddress;
 
 exports.closeAllWsConnections = closeAllWsConnections;
 exports.isConnected = isConnected;
-exports.isCatchingUp = isCatchingUp;

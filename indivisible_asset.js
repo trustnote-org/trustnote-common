@@ -374,8 +374,6 @@ function updateIndivisibleOutputsThatWereReceivedUnstable(conn, onDone){
 function pickIndivisibleCoinsForAmount(
 	conn, objAsset, arrAddresses, last_ball_mci, to_address, change_address, amount, tolerance_plus, tolerance_minus, bMultiAuthored, onDone)
 {
-	if (!ValidationUtils.isPositiveInteger(amount))
-		throw Error("bad amount: "+amount);
 	updateIndivisibleOutputsThatWereReceivedUnstable(conn, function(){
 		console.log("updatePrivateIndivisibleOutputsThatWereReceivedUnstable done");
 		var arrPayloadsWithProofs = [];
@@ -687,15 +685,7 @@ function buildPrivateElementsChain(conn, unit, message_index, output_index, payl
 }
 
 function composeIndivisibleAssetPaymentJoint(params){
-	console.log("indivisible payment from "+params.paying_addresses, params);
-	if ((params.to_address || params.amount) && params.asset_outputs)
-		throw Error("to_address and asset_outputs at the same time");
-	if (params.asset_outputs){
-		if (params.asset_outputs.length !== 1)
-			throw Error("multiple indivisible asset outputs not supported");
-		params.amount = params.asset_outputs[0].amount;
-		params.to_address = params.asset_outputs[0].address;
-	}
+	console.log("indivisible payment from "+params.paying_addresses);
 	if (!ValidationUtils.isNonemptyArray(params.fee_paying_addresses))
 		throw Error('no fee_paying_addresses');
 	composer.composeJoint({
@@ -1001,7 +991,7 @@ function restorePrivateChains(asset, unit, to_address, handleChains){
 // {asset: asset, paying_addresses: arrPayingAddresses, fee_paying_addresses: arrFeePayingAddresses, to_address: to_address, change_address: change_address, amount: amount, tolerance_plus: tolerance_plus, tolerance_minus: tolerance_minus, signer: signer, callbacks: callbacks}
 function composeAndSaveIndivisibleAssetPaymentJoint(params){
 	var params_with_save = _.clone(params);
-	params_with_save.callbacks = getSavingCallbacks(getToAddress(params), params.callbacks);
+	params_with_save.callbacks = getSavingCallbacks(params.to_address, params.callbacks);
 	composeIndivisibleAssetPaymentJoint(params_with_save);
 }
 
@@ -1077,16 +1067,8 @@ function composeMinimalIndivisibleAssetPaymentJoint(params){
 // {asset: asset, available_paying_addresses: arrAvailablePayingAddresses, available_fee_paying_addresses: arrAvailableFeePayingAddresses, to_address: to_address, amount: amount, tolerance_plus: tolerance_plus, tolerance_minus: tolerance_minus, signer: signer, callbacks: callbacks}
 function composeAndSaveMinimalIndivisibleAssetPaymentJoint(params){
 	var params_with_save = _.clone(params);
-	params_with_save.callbacks = getSavingCallbacks(getToAddress(params), params.callbacks);
+	params_with_save.callbacks = getSavingCallbacks(params.to_address, params.callbacks);
 	composeMinimalIndivisibleAssetPaymentJoint(params_with_save);
-}
-
-function getToAddress(params){
-	if (params.to_address)
-		return params.to_address;
-	if (params.asset_outputs)
-		return params.asset_outputs[0].address;
-	throw Error("unable to determine to_address");
 }
 
 

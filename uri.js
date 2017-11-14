@@ -6,14 +6,14 @@ var conf = require('./conf.js');
 
 
 function parseUri(uri, callbacks){
-	var protocol = conf.program || 'byteball';
+	var protocol = conf.program || 'trustgraph';
 	var re = new RegExp('^'+protocol+':(.+)$', 'i');
 	var arrMatches = uri.match(re);
 	if (!arrMatches)
 		return callbacks.ifError("no "+protocol+" prefix");
 	var value = arrMatches[1];
 	var objRequest = {};
-	
+
 	// pairing / start a chat
 //	var arrPairingMatches = value.match(/^([\w\/+]{44})@([\w.:\/-]+)(?:#|%23)([\w\/+]+)$/);
 	var arrPairingMatches = value.replace('%23', '#').match(/^([\w\/+]{44})@([\w.:\/-]+)#([\w\/+-]+)$/);
@@ -26,7 +26,7 @@ function parseUri(uri, callbacks){
 		//    return callbacks.ifError("pairing secret too long");
 		return callbacks.ifOk(objRequest);
 	}
-	
+
 	// authentication/authorization
 	var arrAuthMatches = value.match(/^auth\?(.+)$/);
 	if (arrAuthMatches){
@@ -57,7 +57,7 @@ function parseUri(uri, callbacks){
 		objRequest.params = assocParams;
 		return callbacks.ifOk(objRequest);
 	}
-	
+
 	// pay to address
 	var arrParts = value.split('?');
 	if (arrParts.length > 2)
