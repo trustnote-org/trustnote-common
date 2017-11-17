@@ -800,6 +800,8 @@ exports.readExternalAddresses = readExternalAddresses;
 exports.readChangeAddresses = readChangeAddresses;
 exports.readAddressInfo = readAddressInfo;
 
+exports.readAllAddresses = readAllAddresses; //victor55511 modi
+
 exports.forwardPrivateChainsToOtherMembersOfWallets = forwardPrivateChainsToOtherMembersOfWallets;
 
 exports.readCosigners = readCosigners;
