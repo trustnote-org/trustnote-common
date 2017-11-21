@@ -7,14 +7,14 @@
     "trustgraph",
     "multisignature"
   ],
-  "homepage": "https://gitee.com/trustnote/trustgraph-common",
+  "homepage": "https://gitee.com/trustgraph/trustgraph-common",
   "license": "MIT",
   "repository": {
-    "url": "https://gitee.com/trustnote/trustgraph-common.git",
+    "url": "https://gitee.com/trustgraph/trustgraph-common.git",
     "type": "git"
   },
   "bugs": {
-    "url": "https://gitee.com/trustnote/trustgraph-common/issues"
+    "url": "https://gitee.com/trustgraph/trustgraph-common/issues"
   },
   "browser": {
     "request": "browser-request",
