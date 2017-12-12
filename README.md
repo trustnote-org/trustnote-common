@@ -1,15 +1,15 @@
-# Trustgraph common
+# Trustnote common
 
-This is a library used in [](https://Trustgraph.org) clients.  Never used directly.  Some of the clients that require the library:
+This is a library used in [](https://Trustnote.org) clients.  Never used directly.  Some of the clients that require the library:
 
-* [Trustgraph Wallet](../../../trustgraph-wallet) - GUI wallet for Mac, Windows, Linux, iOS, and Android.
-* [Trustgraph Headless](../../../trustgraph-headless) - headless wallet, primarily for server side use.
-* [Trustgraph Relay](../../../trustgraph-relay) - relay node for Trustgraph network.  It doesn't hold any private keys.
-* [Trustgraph Hub](../../../trustgraph-hub) - hub for Trustgraph network.  Includes the relay, plus can store and forward end-to-end encrypted messages among devices on the Trustgraph network.
+* [Trustnote Wallet](../../../trustnote-wallet) - GUI wallet for Mac, Windows, Linux, iOS, and Android.
+* [Trustnote Headless](../../../trustnote-headless) - headless wallet, primarily for server side use.
+* [Trustnote Relay](../../../trustnote-relay) - relay node for Trustnote network.  It doesn't hold any private keys.
+* [Trustnote Hub](../../../trustnote-hub) - hub for Trustnote network.  Includes the relay, plus can store and forward end-to-end encrypted messages among devices on the Trustnote network.
 
 ## Developer guides
 
-See the [wiki](https://github.com/Trustgraph/Trustgraphcore/wiki/Trustgraph-Developer-Guides).  Many of the features are not documented yet, see other [Trustgraph repositories](https://github.com/Trustgraph) as samples, for APIs see the `exports` of node.js modules.
+See the [wiki](https://github.com/Trustnote/Trustnotecore/wiki/Trustnote-Developer-Guides).  Many of the features are not documented yet, see other [Trustnote repositories](https://github.com/Trustnote) as samples, for APIs see the `exports` of node.js modules.
 
 ## Configuring
 
@@ -27,11 +27,11 @@ This is the list of some of the settings that the library understands (your app 
 
 #### conf.port
 
-The port to listen on.  If you don't want to accept incoming connections at all, set port to `null`, which is the default.  If you do want to listen, you will usually have a proxy, such as nginx, accept websocket connections on standard port 443 and forward them to your Trustgraph daemon that listens on port 6655 on the local interface.
+The port to listen on.  If you don't want to accept incoming connections at all, set port to `null`, which is the default.  If you do want to listen, you will usually have a proxy, such as nginx, accept websocket connections on standard port 443 and forward them to your Trustnote daemon that listens on port 6655 on the local interface.
 
 #### conf.storage
 
-Storage backend -- mysql or sqlite, the default is sqlite.  If sqlite, the database files are stored in the app data folder.  If mysql, you need to also initialize the database with [Trustgraph.sql](Trustgraph.sql) and set connection params, e.g. in conf.json in the app data folder:
+Storage backend -- mysql or sqlite, the default is sqlite.  If sqlite, the database files are stored in the app data folder.  If mysql, you need to also initialize the database with [Trustnote.sql](Trustnote.sql) and set connection params, e.g. in conf.json in the app data folder:
 
 ```json
 {
@@ -40,9 +40,9 @@ Storage backend -- mysql or sqlite, the default is sqlite.  If sqlite, the datab
 	"database": {
 		"max_connections": 30,
 		"host"     : "localhost",
-		"user"     : "Trustgraph",
+		"user"     : "Trustnote",
 		"password" : "yourmysqlpassword",
-		"name"     : "Trustgraph"
+		"name"     : "Trustnote"
 	}
 }
 ```
@@ -52,7 +52,7 @@ Work as light client (`true`) or full node (`false`).  The default is full clien
 
 #### conf.bServeAsHub
 
-Whether to serve as hub on the Trustgraph network (store and forward e2e-encrypted messages for devices that connect to your hub).  The default is `false`.
+Whether to serve as hub on the Trustnote network (store and forward e2e-encrypted messages for devices that connect to your hub).  The default is `false`.
 
 #### conf.myUrl
 
@@ -72,9 +72,9 @@ To lower disk load and increase sync speed, you can optionally disable flushing 
 
 ## Accepting incoming connections
 
-Trustgraph network works over secure WebSocket protocol wss://.  To accept incoming connections, you'll need a valid TLS certificate (you can get a free one from [letsencrypt.org](https://letsencrypt.org)) and a domain name (you can get a free domain from [Freenom](http://www.freenom.com/)).  Then you accept connections on standard port 443 and proxy them to your locally running Trustgraph daemon.
+Trustnote network works over secure WebSocket protocol wss://.  To accept incoming connections, you'll need a valid TLS certificate (you can get a free one from [letsencrypt.org](https://letsencrypt.org)) and a domain name (you can get a free domain from [Freenom](http://www.freenom.com/)).  Then you accept connections on standard port 443 and proxy them to your locally running Trustnote daemon.
 
-This is an example configuration for nginx to accept websocket connections at wss://Trustgraph.one/bb and forward them to locally running daemon that listens on port 6655:
+This is an example configuration for nginx to accept websocket connections at wss://Trustnote.one/bb and forward them to locally running daemon that listens on port 6655:
 
 ```nginx
 server {
@@ -82,14 +82,14 @@ server {
 	listen [::]:80 default_server;
 	listen 443 ssl;
 	listen [::]:443 ssl;
-	ssl_certificate "/etc/letsencrypt/live/Trustgraph.one/fullchain.pem";
-	ssl_certificate_key "/etc/letsencrypt/live/Trustgraph.one/privkey.pem";
+	ssl_certificate "/etc/letsencrypt/live/Trustnote.one/fullchain.pem";
+	ssl_certificate_key "/etc/letsencrypt/live/Trustnote.one/privkey.pem";
 
-	if ($host != "Trustgraph.one") {
-		rewrite ^(.*)$ https://Trustgraph.one$1 permanent;
+	if ($host != "Trustnote.one") {
+		rewrite ^(.*)$ https://Trustnote.one$1 permanent;
 	}
 	if ($https != "on") {
-		rewrite ^(.*)$ https://Trustgraph.one$1 permanent;
+		rewrite ^(.*)$ https://Trustnote.one$1 permanent;
 	}
 
 	location = /bb {

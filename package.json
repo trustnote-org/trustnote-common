@@ -1,20 +1,20 @@
 {
-  "name": "trustgraph-common",
-  "description": "Trustgraph Common",
-  "author": "Trustgraph",
+  "name": "trustnote-common",
+  "description": "Trustnote Common",
+  "author": "Trustnote",
   "version": "0.2.56",
   "keywords": [
-    "trustgraph",
+    "trustnote",
     "multisignature"
   ],
-  "homepage": "https://gitee.com/trustgraph/trustgraph-common",
+  "homepage": "https://gitee.com/trustnote/trustnote-common",
   "license": "MIT",
   "repository": {
-    "url": "https://gitee.com/trustgraph/trustgraph-common.git",
+    "url": "https://gitee.com/trustnote/trustnote-common.git",
     "type": "git"
   },
   "bugs": {
-    "url": "https://gitee.com/trustgraph/trustgraph-common/issues"
+    "url": "https://gitee.com/trustnote/trustnote-common/issues"
   },
   "browser": {
     "request": "browser-request",

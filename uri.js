@@ -6,7 +6,7 @@ var conf = require('./conf.js');
 
 
 function parseUri(uri, callbacks){
-	var protocol = conf.program || 'trustgraph';
+	var protocol = conf.program || 'trustnote';
 	var re = new RegExp('^'+protocol+':(.+)$', 'i');
 	var arrMatches = uri.match(re);
 	if (!arrMatches)

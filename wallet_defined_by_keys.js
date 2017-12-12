@@ -19,7 +19,7 @@ var breadcrumbs = require('./breadcrumbs.js');
 try{
 	var Bitcore = require('bitcore-lib');
 }
-catch(e){ // if trustgraph-common is a symlink, load bitcore-lib from the main module
+catch(e){ // if trustnote-common is a symlink, load bitcore-lib from the main module
 	var Bitcore = loadBitcoreFromNearestParent(module.parent);
 }
 
