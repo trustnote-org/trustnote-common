@@ -49,8 +49,13 @@ function getAppName(){
 }
 
 // app data dir inside user's home directory
-function getAppDataDir(){
-	return (getAppsDataDir() + '/' + getAppName());
+function getAppDataDir() {
+	if (process.platform == 'win32') {
+		return (getAppsDataDir() + '\\' + getAppName());
+	}
+	else {
+		return (getAppsDataDir() + '/' + getAppName());
+	}
 }
 
 
