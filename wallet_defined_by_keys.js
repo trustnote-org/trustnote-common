@@ -747,7 +747,15 @@ function readAllAddresses(wallet, handleAddresses){
 	);
 }
 
-
+function readAllAddressesAndIndex(wallet, handleAddresses){
+	db.query(
+		"SELECT is_change, address_index, address FROM my_addresses WHERE wallet=? order by is_change,address_index",
+		[wallet],
+		function(rows){
+			handleAddresses(rows.map(function(row){ return row.is_change+"-"+row.address_index+"-"+row.address; }));
+		}
+	);
+}
 
 
 
@@ -800,7 +808,7 @@ exports.readExternalAddresses = readExternalAddresses;
 exports.readChangeAddresses = readChangeAddresses;
 exports.readAddressInfo = readAddressInfo;
 
-exports.readAllAddresses = readAllAddresses; //victor55511 modi
+exports.readAllAddressesAndIndex = readAllAddressesAndIndex; //victor55511 modi
 
 exports.forwardPrivateChainsToOtherMembersOfWallets = forwardPrivateChainsToOtherMembersOfWallets;
 
