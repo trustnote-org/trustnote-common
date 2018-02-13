@@ -7,7 +7,7 @@ This is a library used in [](https://Trustnote.org) clients.  Never used directl
 
 ## Developer guides
 
-See the [wiki](https://github.com/Trustnote/Trustnotecore/wiki/Trustnote-Developer-Guides).  Many of the features are not documented yet, see other [Trustnote repositories](https://github.com/Trustnote) as samples, for APIs see the `exports` of node.js modules.
+Many of the features are not documented yet, see other [Trustnote repositories](https://github.com/Trustnote) as samples, for APIs see the `exports` of node.js modules.
 
 ## Configuring
 
