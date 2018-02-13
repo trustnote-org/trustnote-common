@@ -29,7 +29,7 @@ The port to listen on.  If you don't want to accept incoming connections at all,
 
 #### conf.storage
 
-Storage backend -- mysql or sqlite, the default is sqlite.  If sqlite, the database files are stored in the app data folder.  If mysql, you need to also initialize the database with [Trustnote.sql](Trustnote.sql) and set connection params, e.g. in conf.json in the app data folder:
+Storage backend -- mysql or sqlite, the default is sqlite.  If sqlite, the database files are stored in the app data folder.  If mysql, you need to also initialize the database with [trustnote.sql](trustnote.sql) and set connection params, e.g. in conf.json in the app data folder:
 
 ```json
 {
@@ -72,7 +72,7 @@ To lower disk load and increase sync speed, you can optionally disable flushing 
 
 Trustnote network works over secure WebSocket protocol wss://.  To accept incoming connections, you'll need a valid TLS certificate (you can get a free one from [letsencrypt.org](https://letsencrypt.org)) and a domain name (you can get a free domain from [Freenom](http://www.freenom.com/)).  Then you accept connections on standard port 443 and proxy them to your locally running Trustnote daemon.
 
-This is an example configuration for nginx to accept websocket connections at wss://Trustnote.one/bb and forward them to locally running daemon that listens on port 6655:
+This is an example configuration for nginx to accept websocket connections at wss://trustnote.org/tn and forward them to locally running daemon that listens on port 6655:
 
 ```nginx
 server {
@@ -80,17 +80,17 @@ server {
 	listen [::]:80 default_server;
 	listen 443 ssl;
 	listen [::]:443 ssl;
-	ssl_certificate "/etc/letsencrypt/live/Trustnote.one/fullchain.pem";
-	ssl_certificate_key "/etc/letsencrypt/live/Trustnote.one/privkey.pem";
+	ssl_certificate "/etc/letsencrypt/live/trustnote.org/fullchain.pem";
+	ssl_certificate_key "/etc/letsencrypt/live/trustnote.one/privkey.pem";
 
-	if ($host != "Trustnote.one") {
-		rewrite ^(.*)$ https://Trustnote.one$1 permanent;
+	if ($host != "trustnote.org") {
+		rewrite ^(.*)$ https://trustnote.org$1 permanent;
 	}
 	if ($https != "on") {
-		rewrite ^(.*)$ https://Trustnote.one$1 permanent;
+		rewrite ^(.*)$ https://trustnote.org$1 permanent;
 	}
 
-	location = /bb {
+	location = /tn {
 		proxy_pass http://localhost:6655;
 		proxy_http_version 1.1;
 		proxy_set_header X-Real-IP $remote_addr;
