@@ -3,9 +3,7 @@
 This is a library used in [](https://Trustnote.org) clients.  Never used directly.  Some of the clients that require the library:
 
 * [Trustnote Wallet](../../../trustnote-wallet) - GUI wallet for Mac, Windows, Linux, iOS, and Android.
-* [Trustnote Headless](../../../trustnote-headless) - headless wallet, primarily for server side use.
-* [Trustnote Relay](../../../trustnote-relay) - relay node for Trustnote network.  It doesn't hold any private keys.
-* [Trustnote Hub](../../../trustnote-hub) - hub for Trustnote network.  Includes the relay, plus can store and forward end-to-end encrypted messages among devices on the Trustnote network.
+* [Trustnote Headless](../../../headless) - headless wallet, primarily for server side use.
 
 ## Developer guides
 
