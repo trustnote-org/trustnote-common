@@ -265,7 +265,10 @@ function createMultisigWallet(xPubKey, account, count_required_signatures, arrDe
 
 // walletName will not be used
 function createSinglesigWallet(xPubKey, account, walletName, handleWallet){
-	var arrDefinitionTemplate = ["sig", {pubkey: '$pubkey@'+device.getMyDeviceAddress()}];
+	if(walletName.indexOf("(*)") >= 0)
+		var arrDefinitionTemplate = ["sig", {pubkey: '$pubkey@'+device.getMyColdDeviceAddress()}];
+	else
+		var arrDefinitionTemplate = ["sig", {pubkey: '$pubkey@'+device.getMyDeviceAddress()}];
 	createWallet(xPubKey, account, arrDefinitionTemplate, walletName, handleWallet);
 }
 

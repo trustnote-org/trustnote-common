@@ -21,6 +21,7 @@ var TEMP_DEVICE_KEY_ROTATION_PERIOD = 3600*1000;
 var my_device_hub;
 var my_device_name;
 var my_device_address;
+var my_cold_device_address;
 
 var objMyPermanentDeviceKey;
 var objMyTempDeviceKey;
@@ -38,11 +39,28 @@ function getMyDevicePubKey(){
 function getMyDeviceAddress(){
 	if (!my_device_address)
 		throw Error('my_device_address not defined');
+	if (my_cold_device_address && (my_cold_device_address != my_device_address))
+		return my_cold_device_address;
 	if (typeof window !== 'undefined' && window && window.cordova)
 		checkDeviceAddress();
 	return my_device_address;
 }
 
+function uPMyColdDeviceAddress(walletId) {
+	db.query("SELECT device_address FROM extended_pubkeys WHERE wallet=?",[walletId], function(rows) {
+		setMyColdDeviceAddress(rows[0].device_address);
+	})
+}
+
+function setMyColdDeviceAddress(addr) {
+	my_cold_device_address = addr;
+}
+
+function getMyColdDeviceAddress() {
+	if(!my_cold_device_address)
+		throw Error('My_device_address not defined');
+	return my_cold_device_address;
+}
 
 function setDevicePrivateKey(priv_key){
 	breadcrumbs.add("setDevicePrivateKey");
@@ -719,6 +737,9 @@ function requestFromHub(command, params, responseHandler){
 
 exports.getMyDevicePubKey = getMyDevicePubKey;
 exports.getMyDeviceAddress = getMyDeviceAddress;
+exports.uPMyColdDeviceAddress = uPMyColdDeviceAddress;
+exports.setMyColdDeviceAddress = setMyColdDeviceAddress;
+exports.getMyColdDeviceAddress = getMyColdDeviceAddress;
 exports.isValidPubKey = isValidPubKey;
 
 exports.genPrivKey = genPrivKey;

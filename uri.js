@@ -12,10 +12,29 @@ function parseUri(uri, callbacks){
 	if (!arrMatches)
 		return callbacks.ifError("no "+protocol+" prefix");
 	var value = arrMatches[1];
+
 	var objRequest = {};
 
+
+	// observed_wallet to pay
+	var arrPairingMatches = value;
+	var flag = (/^\{.*\}$/).test(arrPairingMatches)
+
+	if (flag){
+		var toObj = JSON.parse(arrPairingMatches);
+
+		objRequest.type = "ob_walletToPay";
+		objRequest.text_to_sign = toObj.text_to_sign;
+		objRequest.path = toObj.path;
+		objRequest.to_address = toObj.to_address;
+		objRequest.amount = toObj.amount;
+		return callbacks.ifOk(objRequest);
+	}
+	// observed_wallet to pay --- end
+
+
 	// pairing / start a chat
-//	var arrPairingMatches = value.match(/^([\w\/+]{44})@([\w.:\/-]+)(?:#|%23)([\w\/+]+)$/);
+	//	var arrPairingMatches = value.match(/^([\w\/+]{44})@([\w.:\/-]+)(?:#|%23)([\w\/+]+)$/);
 	var arrPairingMatches = value.replace('%23', '#').match(/^([\w\/+]{44})@([\w.:\/-]+)#([\w\/+-]+)$/);
 	if (arrPairingMatches){
 		objRequest.type = "pairing";
