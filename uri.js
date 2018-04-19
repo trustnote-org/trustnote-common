@@ -18,16 +18,16 @@ function parseUri(uri, callbacks){
 
 	// observed_wallet to pay
 	var arrPairingMatches = value;
-	var flag = (/^\{.*\}$/).test(arrPairingMatches)
-
+	var flag = (/^\{.*\}$/).test(arrPairingMatches);
 	if (flag){
 		var toObj = JSON.parse(arrPairingMatches);
 
 		objRequest.type = "ob_walletToPay";
-		objRequest.text_to_sign = toObj.text_to_sign;
+		objRequest.text_to_sign = toObj.sign;
 		objRequest.path = toObj.path;
-		objRequest.to_address = toObj.to_address;
+		objRequest.to_address = toObj.addr;
 		objRequest.amount = toObj.amount;
+		objRequest.v = toObj.v;
 		return callbacks.ifOk(objRequest);
 	}
 	// observed_wallet to pay --- end
