@@ -6,15 +6,26 @@ var conf = require('./conf.js');
 
 
 function parseUri(uri, callbacks){
+	var objRequest = {};
+
+
+	if(uri.length == 32){
+		var address = uri;
+		if (!ValidationUtils.isValidAddress(address))
+			return callbacks.ifError("address "+address+" is invalid");
+		objRequest.type = "address";
+		objRequest.address = address;
+		return callbacks.ifOk(objRequest);
+	}
+
+
 	var protocol = conf.program || 'trustnote';
 	var re = new RegExp('^'+protocol+':(.+)$', 'i');
 	var arrMatches = uri.match(re);
-	if (!arrMatches)
+	if (!arrMatches){
 		return callbacks.ifError("no "+protocol+" prefix");
+	}
 	var value = arrMatches[1];
-
-	var objRequest = {};
-
 
 	// observed_wallet to pay
 	var arrPairingMatches = value;
