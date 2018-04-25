@@ -32,7 +32,8 @@ function parseUri(uri, callbacks){
 	var flag = (/^\{.*\}$/).test(arrPairingMatches);
 	if (flag){
 		var toObj = JSON.parse(arrPairingMatches);
-
+		if(toObj.type != "h2")
+			return callbacks.ifError("no "+protocol+" prefix");
 		objRequest.type = "ob_walletToPay";
 		objRequest.text_to_sign = toObj.sign;
 		objRequest.path = toObj.path;
