@@ -802,6 +802,7 @@ exports.addDeviceXPubKey = addDeviceXPubKey;
 exports.handleNotificationThatWalletFullyApproved = handleNotificationThatWalletFullyApproved;
 exports.addNewAddress = addNewAddress;
 
+exports.readNextAddressIndex = readNextAddressIndex;
 exports.issueNextAddress = issueNextAddress;
 exports.readAddressByIndex = readAddressByIndex;
 exports.issueOrSelectNextAddress = issueOrSelectNextAddress;
