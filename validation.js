@@ -110,7 +110,7 @@ function validate(objJoint, callbacks) {
 			return callbacks.ifJointError("wrong headers commission, expected "+objectLength.getHeadersSize(objUnit));
 		if (objectLength.getTotalPayloadSize(objUnit) !== objUnit.payload_commission)
 			return callbacks.ifJointError("wrong payload commission, unit "+objUnit.unit+", calculated "+objectLength.getTotalPayloadSize(objUnit)+", expected "+objUnit.payload_commission);
-	
+	}	
 	if (!isNonemptyArray(objUnit.authors))
 		return callbacks.ifUnitError("missing or empty authors array");
 	
