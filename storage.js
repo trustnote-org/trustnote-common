@@ -1173,23 +1173,17 @@ function filterNewOrUnstableUnits(arrUnits, handleFilteredUnits){
 }
 
 // for unit that is not saved to the db yet
-function determineBestParent(conn, objUnit, arrWitnesses, handleBestParent){
+function determineBestParent(conn, objUnit, handleBestParent){
 	// choose best parent among compatible parents only
 	conn.query(
 		"SELECT unit \n\
 		FROM units AS parent_units \n\
 		WHERE unit IN(?) \n\
-			AND (witness_list_unit=? OR ( \n\
-				SELECT COUNT(*) \n\
-				FROM unit_witnesses AS parent_witnesses \n\
-				WHERE parent_witnesses.unit IN(parent_units.unit, parent_units.witness_list_unit) AND address IN(?) \n\
-			)>=?) \n\
 		ORDER BY witnessed_level DESC, \n\
 			level-witnessed_level ASC, \n\
 			unit ASC \n\
 		LIMIT 1", 
-		[objUnit.parent_units, objUnit.witness_list_unit, 
-		arrWitnesses, constants.COUNT_WITNESSES - constants.MAX_WITNESS_LIST_MUTATIONS], 
+		[objUnit.parent_units], 
 		function(rows){
 			if (rows.length !== 1)
 				return handleBestParent(null);
@@ -1244,7 +1238,7 @@ function buildListOfMcUnitsWithPotentiallyDifferentWitnesslists(conn, objUnit, l
 	}
 
 	var arrMcUnits = [];
-	determineBestParent(conn, objUnit, arrWitnesses, function(best_parent_unit){
+	determineBestParent(conn, objUnit,  function(best_parent_unit){
 		if (!best_parent_unit)
 			return handleList(false);
 		addAndGoUp(best_parent_unit);
@@ -1331,6 +1325,44 @@ setInterval(shrinkCache, 300*1000);
 if (!conf.bLight)
 	archiveJointAndDescendantsIfExists('N6QadI9yg3zLxPMphfNGJcPfddW4yHPkoGMbbGZsWa0=');
 
+function isTrustMe(conn,unit,handleIsTrustMe){
+	conn.query("SELECT 1 FROM trustme WHERE unit=?", [unit], function(rows){
+		if (rows.length === 0)
+			return handleIsTrustMe(false);
+		return handleIsTrustMe(true);
+	});
+}
+
+function determineWitnessedLevelAndBestParent(conn, arrParentUnits,  handleWitnessedLevelAndBestParent){
+	var arrCollectedWitnesses = [];
+	var my_best_parent_unit;
+	var count=0;
+
+	function addWitnessesAndGoUp(start_unit){
+		readStaticUnitProps(conn, start_unit, function(props){
+			var best_parent_unit = props.best_parent_unit;
+			var level = props.level;
+			if (level === null)
+				throw Error("null level in updateWitnessedLevel");
+			if (level === 0) // genesis
+				return handleWitnessedLevelAndBestParent(0, my_best_parent_unit);
+			isTrustMe(conn,start_unit,function(is_trust_me){
+				if(is_trust_me)
+					count++;
+					(count < constants.MAJORITY_OF_WITNESSES) 
+							? addWitnessesAndGoUp(best_parent_unit) : handleWitnessedLevelAndBestParent(level, my_best_parent_unit);
+			});
+		});
+	}
+
+	determineBestParent(conn, {parent_units: arrParentUnits}, function(best_parent_unit){
+		if (!best_parent_unit)
+			throw Error("no best parent of "+arrParentUnits.join(', ')+", witnesses "+arrWitnesses.join(', '));
+		my_best_parent_unit = best_parent_unit;
+		addWitnessesAndGoUp(best_parent_unit);
+	});
+}
+	
 
 exports.isGenesisUnit = isGenesisUnit;
 exports.isGenesisBall = isGenesisBall;
@@ -1378,3 +1410,6 @@ exports.setUnitIsKnown = setUnitIsKnown;
 exports.forgetUnit = forgetUnit;
 
 exports.sliceAndExecuteQuery = sliceAndExecuteQuery;
+
+exports.isTrustMe=isTrustMe;
+exports.determineWitnessedLevelAndBestParent=determineWitnessedLevelAndBestParent

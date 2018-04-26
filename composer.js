@@ -307,6 +307,16 @@ function composePaymentAndTextJoint(arrSigningAddresses, arrPayingAddresses, arr
 	});
 }
 
+function composeEquihashJoint(from_address, rnd_num,seed,difficulty,solution, signer, callbacks){
+	var equihash_data = {rnd_num: rnd_num, seed: seed,difficulty:difficulty,solution:solution};
+	composeContentJoint(from_address, "equihash", equihash_data, signer, callbacks);
+}
+
+function composeTrustmeJoint(from_address, rnd_num,solution, signer, callbacks){
+	var trustme_data = {rnd_num: rnd_num, solution: solution};
+	composeContentJoint(from_address, "trustme", trustme_data, signer, callbacks);
+}
+
 function composeContentJoint(from_address, app, payload, signer, callbacks){
 	var objMessage = {
 		app: app,
@@ -371,14 +381,14 @@ function composeAssetAttestorsJoint(from_address, asset, arrNewAttestors, signer
 */
 function composeJoint(params){
 	
-	var arrWitnesses = params.witnesses;
-	if (!arrWitnesses){
-		myWitnesses.readMyWitnesses(function(_arrWitnesses){
-			params.witnesses = _arrWitnesses;
-			composeJoint(params);
-		});
-		return;
-	}
+	// var arrWitnesses = params.witnesses;
+	// if (!arrWitnesses){
+	// 	myWitnesses.readMyWitnesses(function(_arrWitnesses){
+	// 		params.witnesses = _arrWitnesses;
+	// 		composeJoint(params);
+	// 	});
+	// 	return;
+	// }
 	
 	if (conf.bLight && !params.lightProps){
 		var network = require('./network.js');
@@ -546,7 +556,6 @@ function composeJoint(params){
 			}
 			parentComposer.pickParentUnitsAndLastBall(
 				conn, 
-				arrWitnesses, 
 				function(err, arrParentUnits, last_stable_mc_ball, last_stable_mc_ball_unit, last_stable_mc_ball_mci){
 					if (err)
 						return cb("unable to find parents: "+err);
@@ -609,28 +618,29 @@ function composeJoint(params){
 		},
 		function(cb){ // witnesses
 			if (bGenesis){
-				objUnit.witnesses = arrWitnesses;
+				// objUnit.witnesses = arrWitnesses;
 				return cb();
 			}
 			if (conf.bLight){
-				if (lightProps.witness_list_unit)
-					objUnit.witness_list_unit = lightProps.witness_list_unit;
-				else
-					objUnit.witnesses = arrWitnesses;
+				// if (lightProps.witness_list_unit)
+				// 	objUnit.witness_list_unit = lightProps.witness_list_unit;
+				// else
+				// 	objUnit.witnesses = arrWitnesses;
 				return cb();
 			}
 			// witness addresses must not have references
-			storage.determineIfWitnessAddressDefinitionsHaveReferences(conn, arrWitnesses, function(bWithReferences){
-				if (bWithReferences)
-					return cb("some witnesses have references in their addresses");
-				storage.findWitnessListUnit(conn, arrWitnesses, last_ball_mci, function(witness_list_unit){
-					if (witness_list_unit)
-						objUnit.witness_list_unit = witness_list_unit;
-					else
-						objUnit.witnesses = arrWitnesses;
-					cb();
-				});
-			});
+			// storage.determineIfWitnessAddressDefinitionsHaveReferences(conn, arrWitnesses, function(bWithReferences){
+			// 	if (bWithReferences)
+			// 		return cb("some witnesses have references in their addresses");
+			// 	storage.findWitnessListUnit(conn, arrWitnesses, last_ball_mci, function(witness_list_unit){
+			// 		if (witness_list_unit)
+			// 			objUnit.witness_list_unit = witness_list_unit;
+			// 		else
+			// 			objUnit.witnesses = arrWitnesses;
+			// 		cb();
+			// 	});
+			// });
+			cb();
 		},
 		// messages retrieved via callback
 		function(cb){
@@ -653,7 +663,7 @@ function composeJoint(params){
 			var naked_payload_commission = objectLength.getTotalPayloadSize(objUnit); // without input coins
 
 			if (bGenesis){
-				objPaymentMessage.payload.inputs = [{type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES, address: arrWitnesses[0]}];
+				objPaymentMessage.payload.inputs = [{type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES}];
 				objUnit.payload_commission = objectLength.getTotalPayloadSize(objUnit);
 				total_input = constants.TOTAL_WHITEBYTES;
 				return cb();
@@ -953,3 +963,6 @@ exports.composeAndSavePaymentJoint = composeAndSavePaymentJoint;
 exports.generateBlinding = generateBlinding;
 exports.getMessageIndexByPayloadHash = getMessageIndexByPayloadHash;
 exports.pickDivisibleCoinsForAmount = pickDivisibleCoinsForAmount;
+
+exports.composeTrustmeJoint=composeTrustmeJoint
+exports.composeEquihashJoint=composeEquihashJoint

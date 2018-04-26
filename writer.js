@@ -32,9 +32,9 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 			conn.addQuery(arrQueries, objAdditionalQuery.sql, objAdditionalQuery.params);
 		}
 		
-		var fields = "unit, version, alt, witness_list_unit, last_ball_unit, headers_commission, payload_commission, sequence, content_hash";
-		var values = "?,?,?,?,?,?,?,?,?";
-		var params = [objUnit.unit, objUnit.version, objUnit.alt, objUnit.witness_list_unit, objUnit.last_ball_unit,
+		var fields = "unit, version, alt,  last_ball_unit, headers_commission, payload_commission, sequence, content_hash";
+		var values = "?,?,?,?,?,?,?,?";
+		var params = [objUnit.unit, objUnit.version, objUnit.alt, objUnit.last_ball_unit,
 			objUnit.headers_commission || 0, objUnit.payload_commission || 0, objValidationState.sequence, objUnit.content_hash];
 		if (conf.bLight){
 			fields += ", main_chain_index, creation_date";
@@ -68,14 +68,14 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 			});
 		}
 		
-		if (Array.isArray(objUnit.witnesses)){
-			for (var i=0; i<objUnit.witnesses.length; i++){
-				var address = objUnit.witnesses[i];
-				conn.addQuery(arrQueries, "INSERT INTO unit_witnesses (unit, address) VALUES(?,?)", [objUnit.unit, address]);
-			}
-			conn.addQuery(arrQueries, "INSERT "+conn.getIgnore()+" INTO witness_list_hashes (witness_list_unit, witness_list_hash) VALUES (?,?)", 
-				[objUnit.unit, objectHash.getBase64Hash(objUnit.witnesses)]);
-		}
+		// if (Array.isArray(objUnit.witnesses)){
+		// 	for (var i=0; i<objUnit.witnesses.length; i++){
+		// 		var address = objUnit.witnesses[i];
+		// 		conn.addQuery(arrQueries, "INSERT INTO unit_witnesses (unit, address) VALUES(?,?)", [objUnit.unit, address]);
+		// 	}
+		// 	conn.addQuery(arrQueries, "INSERT "+conn.getIgnore()+" INTO witness_list_hashes (witness_list_unit, witness_list_hash) VALUES (?,?)", 
+		// 		[objUnit.unit, objectHash.getBase64Hash(objUnit.witnesses)]);
+		// }
 		
 		var arrAuthorAddresses = [];
 		for (var i=0; i<objUnit.authors.length; i++){
@@ -140,6 +140,18 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 							var vote = message.payload;
 							conn.addQuery(arrQueries, "INSERT INTO votes (unit, message_index, poll_unit, choice) VALUES (?,?,?,?)", 
 								[objUnit.unit, i, vote.unit, vote.choice]);
+							break;
+						case "equihash":
+							if(objUnit.authors.length>1)
+									throw Error('more than one author in equihash message');
+							var equihash = message.payload;
+							conn.addQuery(arrQueries, "INSERT INTO equihash (unit,message_index,address,seed,difficulty, rnd_num, solution) VALUES (?,?,?,?,?,?,?)", 
+								[objUnit.unit, i,objUnit.authors[0].address,equihash.seed,equihash.difficulty,equihash.rnd_num, equihash.solution]);
+							break;
+						case "trustme":
+							var trustme = message.payload;
+							conn.addQuery(arrQueries, "INSERT INTO trustme (unit,message_index, rnd_num, solution) VALUES (?,?,?,?)", 
+								[objUnit.unit, i,trustme.rnd_num, trustme.solution]);
 							break;
 						case "attestation":
 							var attestation = message.payload;
@@ -333,19 +345,11 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 				"SELECT unit \n\
 				FROM units AS parent_units \n\
 				WHERE unit IN(?) \n\
-					AND (witness_list_unit=? OR ( \n\
-						SELECT COUNT(*) \n\
-						FROM unit_witnesses \n\
-						JOIN unit_witnesses AS parent_witnesses USING(address) \n\
-						WHERE parent_witnesses.unit IN(parent_units.unit, parent_units.witness_list_unit) \n\
-							AND unit_witnesses.unit IN(?, ?) \n\
-					)>=?) \n\
 				ORDER BY witnessed_level DESC, \n\
 					level-witnessed_level ASC, \n\
 					unit ASC \n\
 				LIMIT 1", 
-				[objUnit.parent_units, objUnit.witness_list_unit, 
-				objUnit.unit, objUnit.witness_list_unit, constants.COUNT_WITNESSES - constants.MAX_WITNESS_LIST_MUTATIONS], 
+				[objUnit.parent_units], 
 				function(rows){
 					if (rows.length !== 1)
 						throw Error("zero or more than one best parent unit?");
@@ -367,18 +371,14 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 		
 		
 		function updateWitnessedLevel(cb){
-			if (objUnit.witnesses)
 				updateWitnessedLevelByWitnesslist(objUnit.witnesses, cb);
-			else
-				storage.readWitnessList(conn, objUnit.witness_list_unit, function(arrWitnesses){
-					updateWitnessedLevelByWitnesslist(arrWitnesses, cb);
-				});
 		}
 		
 		// The level at which we collect at least 7 distinct witnesses while walking up the main chain from our unit.
 		// The unit itself is not counted even if it is authored by a witness
 		function updateWitnessedLevelByWitnesslist(arrWitnesses, cb){
 			var arrCollectedWitnesses = [];
+			var count=0;
 			
 			function setWitnessedLevel(witnessed_level){
 				profiler.start();
@@ -399,16 +399,13 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 					if (level === 0) // genesis
 						return setWitnessedLevel(0);
 					profiler.start();
-					storage.readUnitAuthors(conn, start_unit, function(arrAuthors){
+					storage.isTrustMe(conn, start_unit, function(is_trust_me){
 						profiler.stop('write-wl-select-authors');
 						profiler.start();
-						for (var i=0; i<arrAuthors.length; i++){
-							var address = arrAuthors[i];
-							if (arrWitnesses.indexOf(address) !== -1 && arrCollectedWitnesses.indexOf(address) === -1)
-								arrCollectedWitnesses.push(address);
-						}
+						if(is_trust_me)
+							count++;
 						profiler.stop('write-wl-search');
-						(arrCollectedWitnesses.length < constants.MAJORITY_OF_WITNESSES) 
+						(count < constants.MAJORITY_OF_WITNESSES) 
 							? addWitnessesAndGoUp(best_parent_unit) : setWitnessedLevel(level);
 					});
 				});
@@ -507,4 +504,3 @@ function updateSqliteStats(){
 }
 
 exports.saveJoint = saveJoint;
-

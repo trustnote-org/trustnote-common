@@ -220,6 +220,34 @@ CREATE TABLE votes (
 );
 CREATE INDEX votesIndexByPollUnitChoice ON votes(poll_unit, choice);
 
+CREATE TABLE trustme (
+	unit CHAR(44) NOT NULL PRIMARY KEY,
+	message_index TINYINT NOT NULL,
+	rnd_num UNSIGNED BIG INT NOT NULL,
+	solution VARCHAR(4096) NOT NULL,
+	FOREIGN KEY (unit) REFERENCES units(unit)
+);
+CREATE INDEX byRndNum ON trustme(rnd_num);
+
+CREATE TABLE equihash (
+	unit CHAR(44) NOT NULL PRIMARY KEY,
+	message_index TINYINT NOT NULL,
+	address char(32) NOT Null,
+	seed varchar(1024) NOT NULL,
+	difficulty INT NOT NULL,
+	rnd_num UNSIGNED BIG INT NOT NULL,
+	solution varchar(1024) NOT NULL,
+	FOREIGN KEY (unit) REFERENCES units(unit)
+);
+CREATE INDEX byRndNum1 ON equihash(rnd_num);
+
+CREATE TABLE attestor (
+	rnd_num UNSIGNED BIG INT NOT NULL,
+	address char(32) NOT Null,
+	mci INT NULL
+);
+CREATE INDEX byRndNum2 ON attestor(rnd_num);
+
 
 CREATE TABLE attestations (
 	unit CHAR(44) NOT NULL,

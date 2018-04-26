@@ -7,7 +7,7 @@ var storage = require("./storage.js");
 var main_chain = require("./main_chain.js");
 
 
-function pickParentUnits(conn, arrWitnesses, onDone){
+function pickParentUnits(conn,  onDone){
 	// don't exclude units derived from unwitnessed potentially bad units! It is not their blame and can cause a split.
 	
 	// test creating bad units
@@ -16,31 +16,27 @@ function pickParentUnits(conn, arrWitnesses, onDone){
 	
 	conn.query(
 		"SELECT \n\
-			unit, version, alt, ( \n\
-				SELECT COUNT(*) \n\
-				FROM unit_witnesses \n\
-				WHERE unit_witnesses.unit IN(units.unit, units.witness_list_unit) AND address IN(?) \n\
-			) AS count_matching_witnesses \n\
+			unit, version, alt \n\
 		FROM units "+(conf.storage === 'sqlite' ? "INDEXED BY byFree" : "")+" \n\
 		LEFT JOIN archived_joints USING(unit) \n\
 		WHERE +sequence='good' AND is_free=1 AND archived_joints.unit IS NULL ORDER BY unit LIMIT ?", 
 		// exclude potential parents that were archived and then received again
-		[arrWitnesses, constants.MAX_PARENTS_PER_UNIT], 
+		[constants.MAX_PARENTS_PER_UNIT], 
 		function(rows){
 			if (rows.some(function(row){ return (row.version !== constants.version || row.alt !== constants.alt); }))
 				throw Error('wrong network');
-			var count_required_matches = constants.COUNT_WITNESSES - constants.MAX_WITNESS_LIST_MUTATIONS;
-			// we need at least one compatible parent, otherwise go deep
-			if (rows.filter(function(row){ return (row.count_matching_witnesses >= count_required_matches); }).length === 0)
-				return pickDeepParentUnits(conn, arrWitnesses, onDone);
-			onDone(null, rows.map(function(row){ return row.unit; }));
+			//dag的任意时刻，应该都有叶子节点,此行应该也可以注掉
+			if(rows.length===0)
+				return pickDeepParentUnits(conn,   onDone);
+			var arrParentUnits = rows.map(function(row){ return row.unit; });
+			onDone(null, arrParentUnits.slice(0, constants.MAX_PARENTS_PER_UNIT));
 		}
 	);
 }
 
 // if we failed to find compatible parents among free units. 
 // (This may be the case if an attacker floods the network trying to shift the witness list)
-function pickDeepParentUnits(conn, arrWitnesses, onDone){
+function pickDeepParentUnits(conn, onDone){
 	// fixed: an attacker could cover all free compatible units with his own incompatible ones, then those that were not on MC will be never included
 	//var cond = bDeep ? "is_on_main_chain=1" : "is_free=1";
 	
@@ -48,13 +44,7 @@ function pickDeepParentUnits(conn, arrWitnesses, onDone){
 		"SELECT unit \n\
 		FROM units \n\
 		WHERE +sequence='good' \n\
-			AND ( \n\
-				SELECT COUNT(*) \n\
-				FROM unit_witnesses \n\
-				WHERE unit_witnesses.unit IN(units.unit, units.witness_list_unit) AND address IN(?) \n\
-			)>=? \n\
 		ORDER BY main_chain_index DESC LIMIT 1", 
-		[arrWitnesses, constants.COUNT_WITNESSES - constants.MAX_WITNESS_LIST_MUTATIONS], 
 		function(rows){
 			if (rows.length === 0)
 				return onDone("failed to find compatible parents: no deep units");
@@ -63,16 +53,11 @@ function pickDeepParentUnits(conn, arrWitnesses, onDone){
 	);
 }
 
-function findLastStableMcBall(conn, arrWitnesses, onDone){
+function findLastStableMcBall(conn,  onDone){
 	conn.query(
 		"SELECT ball, unit, main_chain_index FROM units JOIN balls USING(unit) \n\
-		WHERE is_on_main_chain=1 AND is_stable=1 AND +sequence='good' AND ( \n\
-			SELECT COUNT(*) \n\
-			FROM unit_witnesses \n\
-			WHERE unit_witnesses.unit IN(units.unit, units.witness_list_unit) AND address IN(?) \n\
-		)>=? \n\
+		WHERE is_on_main_chain=1 AND is_stable=1 AND +sequence='good' \n\
 		ORDER BY main_chain_index DESC LIMIT 1", 
-		[arrWitnesses, constants.COUNT_WITNESSES - constants.MAX_WITNESS_LIST_MUTATIONS], 
 		function(rows){
 			if (rows.length === 0)
 				return onDone("failed to find last stable ball");
@@ -81,7 +66,7 @@ function findLastStableMcBall(conn, arrWitnesses, onDone){
 	);
 }
 
-function adjustLastStableMcBallAndParents(conn, last_stable_mc_ball_unit, arrParentUnits, arrWitnesses, handleAdjustedLastStableUnit){
+function adjustLastStableMcBallAndParents(conn, last_stable_mc_ball_unit, arrParentUnits,  handleAdjustedLastStableUnit){
 	main_chain.determineIfStableInLaterUnits(conn, last_stable_mc_ball_unit, arrParentUnits, function(bStable){
 		if (bStable){
 			conn.query("SELECT ball, main_chain_index FROM units JOIN balls USING(unit) WHERE unit=?", [last_stable_mc_ball_unit], function(rows){
@@ -94,40 +79,46 @@ function adjustLastStableMcBallAndParents(conn, last_stable_mc_ball_unit, arrPar
 		}
 		console.log('will adjust last stable ball because '+last_stable_mc_ball_unit+' is not stable in view of parents '+arrParentUnits.join(', '));
 		if (arrParentUnits.length > 1){ // select only one parent
-			pickDeepParentUnits(conn, arrWitnesses, function(err, arrAdjustedParentUnits){
+			pickDeepParentUnits(conn,  function(err, arrAdjustedParentUnits){
 				if (err)
 					throw Error("pickDeepParentUnits in adjust failed: "+err);
-				adjustLastStableMcBallAndParents(conn, last_stable_mc_ball_unit, arrAdjustedParentUnits, arrWitnesses, handleAdjustedLastStableUnit);
+				adjustLastStableMcBallAndParents(conn, last_stable_mc_ball_unit, arrAdjustedParentUnits,  handleAdjustedLastStableUnit);
 			});
 			return;
 		}
 		storage.readStaticUnitProps(conn, last_stable_mc_ball_unit, function(objUnitProps){
 			if (!objUnitProps.best_parent_unit)
 				throw Error("no best parent of "+last_stable_mc_ball_unit);
-			adjustLastStableMcBallAndParents(conn, objUnitProps.best_parent_unit, arrParentUnits, arrWitnesses, handleAdjustedLastStableUnit);
+			adjustLastStableMcBallAndParents(conn, objUnitProps.best_parent_unit, arrParentUnits,  handleAdjustedLastStableUnit);
 		});
 	});
 }
 
-function pickParentUnitsAndLastBall(conn, arrWitnesses, onDone){
-	pickParentUnits(conn, arrWitnesses, function(err, arrParentUnits){
+function trimParentList(conn, arrParentUnits,  handleTrimmedList){
+	if (arrParentUnits.length <= constants.MAX_PARENTS_PER_UNIT)
+		return handleTrimmedList(arrParentUnits);
+	conn.query(
+		"SELECT unit, (SELECT 1 FROM trustme WHERE trustme.unit=units.unit LIMIT 1) AS is_attestor \n\
+		FROM units WHERE unit IN("+arrParentUnits.map(db.escape).join(', ')+") ORDER BY is_attestor DESC, "+db.getRandom()+" LIMIT ?",
+		[constants.MAX_PARENTS_PER_UNIT],
+		function(rows){
+			handleTrimmedList(rows.map(function(row){ return row.unit; }).sort());
+		}
+	);
+}
+
+function pickParentUnitsAndLastBall(conn,  onDone){
+	pickParentUnits(conn,  function(err, arrParentUnits){
 		if (err)
 			return onDone(err);
-		findLastStableMcBall(conn, arrWitnesses, function(err, last_stable_mc_ball, last_stable_mc_ball_unit, last_stable_mc_ball_mci){
+		findLastStableMcBall(conn,  function(err, last_stable_mc_ball, last_stable_mc_ball_unit, last_stable_mc_ball_mci){
 			if (err)
 				return onDone(err);
 			adjustLastStableMcBallAndParents(
-				conn, last_stable_mc_ball_unit, arrParentUnits, arrWitnesses, 
+				conn, last_stable_mc_ball_unit, arrParentUnits,  
 				function(last_stable_ball, last_stable_unit, last_stable_mci, arrAdjustedParentUnits){
-					storage.findWitnessListUnit(conn, arrWitnesses, last_stable_mci, function(witness_list_unit){
-						var objFakeUnit = {parent_units: arrAdjustedParentUnits};
-						if (witness_list_unit)
-							objFakeUnit.witness_list_unit = witness_list_unit;
-						storage.determineIfHasWitnessListMutationsAlongMc(conn, objFakeUnit, last_stable_unit, arrWitnesses, function(err){
-							if (err)
-								return onDone(err); // if first arg is not array, it is error
-							onDone(null, arrAdjustedParentUnits, last_stable_ball, last_stable_unit, last_stable_mci);
-						});
+					trimParentList(conn, arrAdjustedParentUnits,  function(arrTrimmedParentUnits){
+						onDone(null, arrTrimmedParentUnits, last_stable_ball, last_stable_unit, last_stable_mci);
 					});
 				}
 			);

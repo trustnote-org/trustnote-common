@@ -110,7 +110,6 @@ function validate(objJoint, callbacks) {
 			return callbacks.ifJointError("wrong headers commission, expected "+objectLength.getHeadersSize(objUnit));
 		if (objectLength.getTotalPayloadSize(objUnit) !== objUnit.payload_commission)
 			return callbacks.ifJointError("wrong payload commission, unit "+objUnit.unit+", calculated "+objectLength.getTotalPayloadSize(objUnit)+", expected "+objUnit.payload_commission);
-	}
 	
 	if (!isNonemptyArray(objUnit.authors))
 		return callbacks.ifUnitError("missing or empty authors array");
@@ -500,107 +499,29 @@ function validateParents(conn, objJoint, objValidationState, callback){
 
 function validateWitnesses(conn, objUnit, objValidationState, callback){
 
-	function validateWitnessListMutations(arrWitnesses){
+	function validateWitnessListMutations(){
 		if (!objUnit.parent_units) // genesis
 			return callback();
-		storage.determineIfHasWitnessListMutationsAlongMc(conn, objUnit, last_ball_unit, arrWitnesses, function(err){
-			if (err && objValidationState.last_ball_mci >= 512000) // do not enforce before the || bug was fixed
-				return callback(err);
-			checkNoReferencesInWitnessAddressDefinitions(arrWitnesses);
+		checkWitnessedLevelDidNotRetreat();
+	}
+
+	function checkWitnessedLevelDidNotRetreat(){
+		storage.determineWitnessedLevelAndBestParent(conn, objUnit.parent_units,  function(witnessed_level, best_parent_unit){
+			objValidationState.witnessed_level = witnessed_level;
+			objValidationState.best_parent_unit = best_parent_unit;
+			if (objValidationState.last_ball_mci < 1400000) // not enforced
+				return callback();
+			storage.readStaticUnitProps(conn, best_parent_unit, function(props){
+				(witnessed_level >= props.witnessed_level) 
+					? callback() 
+					: callback("witnessed level retreats from "+props.witnessed_level+" to "+witnessed_level);
+			});
 		});
 	}
 	
-	function checkNoReferencesInWitnessAddressDefinitions(arrWitnesses){
-		profiler.start();
-		var cross = (conf.storage === 'sqlite') ? 'CROSS' : ''; // correct the query planner
-		conn.query(
-			"SELECT 1 \n\
-			FROM address_definition_changes \n\
-			JOIN definitions USING(definition_chash) \n\
-			JOIN units AS change_units USING(unit)   -- units where the change was declared \n\
-			JOIN unit_authors USING(definition_chash) \n\
-			JOIN units AS definition_units ON unit_authors.unit=definition_units.unit   -- units where the definition was disclosed \n\
-			WHERE address_definition_changes.address IN(?) AND has_references=1 \n\
-				AND change_units.is_stable=1 AND change_units.main_chain_index<=? AND +change_units.sequence='good' \n\
-				AND definition_units.is_stable=1 AND definition_units.main_chain_index<=? AND +definition_units.sequence='good' \n\
-			UNION \n\
-			SELECT 1 \n\
-			FROM definitions \n\
-			"+cross+" JOIN unit_authors USING(definition_chash) \n\
-			JOIN units AS definition_units ON unit_authors.unit=definition_units.unit   -- units where the definition was disclosed \n\
-			WHERE definition_chash IN(?) AND has_references=1 \n\
-				AND definition_units.is_stable=1 AND definition_units.main_chain_index<=? AND +definition_units.sequence='good' \n\
-			LIMIT 1",
-			[arrWitnesses, objValidationState.last_ball_mci, objValidationState.last_ball_mci, arrWitnesses, objValidationState.last_ball_mci],
-			function(rows){
-				profiler.stop('validation-witnesses-no-refs');
-				(rows.length > 0) ? callback("some witnesses have references in their addresses") : callback();
-			}
-		);
-	}
-
 	profiler.start();
 	var last_ball_unit = objUnit.last_ball_unit;
-	if (typeof objUnit.witness_list_unit === "string"){
-		conn.query("SELECT sequence, is_stable, main_chain_index FROM units WHERE unit=?", [objUnit.witness_list_unit], function(unit_rows){
-			if (unit_rows.length === 0)
-				return callback("witness list unit "+objUnit.witness_list_unit+" not found");
-			var objWitnessListUnitProps = unit_rows[0];
-			if (objWitnessListUnitProps.sequence !== 'good')
-				return callback("witness list unit "+objUnit.witness_list_unit+" is not serial");
-			if (objWitnessListUnitProps.is_stable !== 1)
-				return callback("witness list unit "+objUnit.witness_list_unit+" is not stable");
-			if (objWitnessListUnitProps.main_chain_index > objValidationState.last_ball_mci)
-				return callback("witness list unit "+objUnit.witness_list_unit+" must come before last ball");
-			conn.query(
-				"SELECT address FROM unit_witnesses WHERE unit=? ORDER BY address", 
-				[objUnit.witness_list_unit], 
-				function(rows){
-					if (rows.length === 0)
-						return callback("referenced witness list unit "+objUnit.witness_list_unit+" has no witnesses");
-					var arrWitnesses = rows.map(function(row){ return row.address; });
-					if (arrWitnesses.length !== constants.COUNT_WITNESSES)
-						throw Error("wrong number of witnesses: "+arrWitnesses.length);
-					profiler.stop('validation-witnesses-read-list');
-					validateWitnessListMutations(arrWitnesses);
-				}
-			);
-		});
-	}
-	else if (Array.isArray(objUnit.witnesses) && objUnit.witnesses.length === constants.COUNT_WITNESSES){
-		var prev_witness = objUnit.witnesses[0];
-		for (var i=0; i<objUnit.witnesses.length; i++){
-			var curr_witness = objUnit.witnesses[i];
-			if (!chash.isChashValid(curr_witness))
-				return cb("witness address "+curr_witness+" is invalid");
-			if (i === 0)
-				continue;
-			if (curr_witness <= prev_witness)
-				return callback("wrong order of witnesses, or duplicates");
-			prev_witness = curr_witness;
-		}
-		if (storage.isGenesisUnit(objUnit.unit)){
-			// addresses might not be known yet, it's ok
-			validateWitnessListMutations(objUnit.witnesses);
-			return;
-		}
-		// check that all witnesses are already known and their units are good and stable
-		conn.query(
-			// address=definition_chash is true in the first appearence of the address
-			// (not just in first appearence: it can return to its initial definition_chash sometime later)
-			"SELECT COUNT(DISTINCT address) AS count_stable_good_witnesses FROM unit_authors JOIN units USING(unit) \n\
-			WHERE address=definition_chash AND +sequence='good' AND is_stable=1 AND main_chain_index<=? AND address IN(?)",
-			[objValidationState.last_ball_mci, objUnit.witnesses],
-			function(rows){
-				if (rows[0].count_stable_good_witnesses !== constants.COUNT_WITNESSES)
-					return callback("some witnesses are not stable, not serial, or don't come before last ball");
-				profiler.stop('validation-witnesses-stable');
-				validateWitnessListMutations(objUnit.witnesses);
-			}
-		);
-	}
-	else
-		return callback("no witnesses or not enough witnesses");
+	validateWitnessListMutations();
 }
 
 function validateHeadersCommissionRecipients(objUnit, cb){
@@ -1147,7 +1068,26 @@ function validateInlinePayload(conn, objMessage, message_index, objUnit, objVali
 				if (typeof payload.choices[i] !== 'string')
 					return callback("all choices must be strings");
 			return callback();
-			
+		case "trustme":
+			if (typeof payload.rnd_num !== "number")
+				return callback("round must be number");
+			if (typeof payload.solution !== "string")
+				return callback("solution must be string");
+			if (hasFieldsExcept(payload, ["rnd_num", "solution"]))
+				return callback("unknown fields in "+objMessage.app);
+			return callback();
+		case "equihash":
+			if (typeof payload.rnd_num !== "number")
+				return callback("rnd_num must be number");
+			if (typeof payload.solution !== "string")
+				return callback("solution must be string");
+			if (typeof payload.difficulty !== "number")
+				return callback("difficulty must be number");
+			if (typeof payload.seed !== "string")
+				return callback("seed must be string");
+			if (hasFieldsExcept(payload, ["rnd_num", "solution","seed","difficulty"]))
+				return callback("unknown fields in "+objMessage.app);
+			return callback();
 		case "vote":
 			if (!isStringOfLength(payload.unit, constants.HASH_LENGTH))
 				return callback("invalid unit in vote");
@@ -1995,5 +1935,3 @@ exports.hasValidHashes = hasValidHashes;
 exports.validateAuthorSignaturesWithoutReferences = validateAuthorSignaturesWithoutReferences;
 exports.validatePayment = validatePayment;
 exports.initPrivatePaymentValidationState = initPrivatePaymentValidationState;
-
-

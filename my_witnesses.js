@@ -22,9 +22,9 @@ function readMyWitnesses(handleWitnesses, actionIfEmpty){
 				return handleWitnesses([]);
 			if (actionIfEmpty === 'wait'){
 				console.log('no witnesses yet, will retry later');
-				setTimeout(function(){
-					readMyWitnesses(handleWitnesses, actionIfEmpty);
-				}, 1000);
+				// setTimeout(function(){
+				// 	readMyWitnesses(handleWitnesses, actionIfEmpty);
+				// }, 1000);
 				return;
 			}
 		}

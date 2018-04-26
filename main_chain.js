@@ -273,7 +273,7 @@ function updateMainChain(conn, last_unit, onDone){
 		profiler.start();
 		readLastStableMcUnit(function(last_stable_mc_unit){
 			console.log("last stable mc unit "+last_stable_mc_unit);
-			storage.readWitnesses(conn, last_stable_mc_unit, function(arrWitnesses){
+			// storage.readWitnesses(conn, last_stable_mc_unit, function(arrWitnesses){
 				conn.query("SELECT unit, is_on_main_chain, main_chain_index, level FROM units WHERE best_parent_unit=?", [last_stable_mc_unit], function(rows){
 					if (rows.length === 0){
 						//if (isGenesisUnit(last_stable_mc_unit))
@@ -301,9 +301,9 @@ function updateMainChain(conn, last_unit, onDone){
 						var mc_end_witnessed_level = wl_rows[0].witnessed_level;
 						conn.query(
 							// among these 7 witnesses, find min wl
-							"SELECT MIN(witnessed_level) AS min_mc_wl FROM units LEFT JOIN unit_authors USING(unit) \n\
-							WHERE is_on_main_chain=1 AND level>=? AND address IN(?)", // _left_ join enforces the best query plan in sqlite
-							[mc_end_witnessed_level, arrWitnesses],
+							"SELECT MIN(witnessed_level) AS min_mc_wl FROM units JOIN trustme USING(unit) \n\
+							WHERE is_on_main_chain=1 AND level>=?", // _left_ join enforces the best query plan in sqlite
+							[mc_end_witnessed_level],
 							function(min_wl_rows){
 								if (min_wl_rows.length !== 1)
 									throw Error("not a single min mc wl");
@@ -337,12 +337,8 @@ function updateMainChain(conn, last_unit, onDone){
 										FROM units \n\
 										LEFT JOIN parenthoods ON units.unit=child_unit \n\
 										LEFT JOIN units AS punits ON parent_unit=punits.unit AND punits.witnessed_level >= units.witnessed_level \n\
-										WHERE units.unit IN(?) AND punits.unit IS NULL AND ( \n\
-											SELECT COUNT(*) \n\
-											FROM unit_witnesses \n\
-											WHERE unit_witnesses.unit IN(units.unit, units.witness_list_unit) AND unit_witnesses.address IN(?) \n\
-										)>=?",
-										[arrAltBestChildren, arrWitnesses, constants.COUNT_WITNESSES - constants.MAX_WITNESS_LIST_MUTATIONS],
+										WHERE units.unit IN(?) AND punits.unit IS NULL" ,
+										[arrAltBestChildren],
 										function(max_alt_rows){
 											if (max_alt_rows.length !== 1)
 												throw Error("not a single max alt level");
@@ -355,7 +351,7 @@ function updateMainChain(conn, last_unit, onDone){
 						);
 					});
 				});
-			});
+			// });
 		});
 	}
 
@@ -439,14 +435,14 @@ function determineIfStableInLaterUnits(conn, earlier_unit, arrLaterUnits, handle
 	if (storage.isGenesisUnit(earlier_unit))
 		return handleResult(true);
 	// hack to workaround past validation error
-	if (earlier_unit === 'LGFzduLJNQNzEqJqUXdkXr58wDYx77V8WurDF3+GIws=' && arrLaterUnits.join(',') === '6O4t3j8kW0/Lo7n2nuS8ITDv2UbOhlL9fF1M6j/PrJ4=')
-		return handleResult(true);
+	// if (earlier_unit === 'LGFzduLJNQNzEqJqUXdkXr58wDYx77V8WurDF3+GIws=' && arrLaterUnits.join(',') === '6O4t3j8kW0/Lo7n2nuS8ITDv2UbOhlL9fF1M6j/PrJ4=')
+	// 	return handleResult(true);
 	storage.readPropsOfUnits(conn, earlier_unit, arrLaterUnits, function(objEarlierUnitProps, arrLaterUnitProps){
 		if (objEarlierUnitProps.is_free === 1)
 			return handleResult(false);
 		var max_later_limci = Math.max.apply(
 			null, arrLaterUnitProps.map(function(objLaterUnitProps){ return objLaterUnitProps.latest_included_mc_index; }));
-		readBestParentAndItsWitnesses(conn, earlier_unit, function(best_parent_unit, arrWitnesses){
+		readBestParent(conn, earlier_unit, function(best_parent_unit){
 			conn.query("SELECT unit, is_on_main_chain, main_chain_index, level FROM units WHERE best_parent_unit=?", [best_parent_unit], function(rows){
 				if (rows.length === 0)
 					throw Error("no best children of "+best_parent_unit+"?");
@@ -471,11 +467,14 @@ function determineIfStableInLaterUnits(conn, earlier_unit, arrLaterUnits, handle
 					function goUp(start_unit){
 						conn.query(
 							"SELECT best_parent_unit, witnessed_level, \n\
-								(SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit AND address IN(?)) AS count \n\
-							FROM units WHERE unit=?", [arrWitnesses, start_unit],
+								(SELECT COUNT(*) FROM trustme WHERE trustme.unit=units.unit) AS count \n\
+							FROM units WHERE unit=?", [start_unit],
 							function(rows){
-								if (rows.length !== 1)
+								if (rows.length !== 1){
+									console.error("findMinMcWitnessedLevel.goUp rows.length=",rows.length," start_unit=",start_unit);
 									throw Error("findMinMcWitnessedLevel: not 1 row");
+								}
+								
 								var row = rows[0];
 								if (row.count > 0 && row.witnessed_level < min_mc_wl)
 									min_mc_wl = row.witnessed_level;
@@ -487,14 +486,14 @@ function determineIfStableInLaterUnits(conn, earlier_unit, arrLaterUnits, handle
 
 					conn.query(
 						"SELECT witnessed_level, best_parent_unit, \n\
-							(SELECT COUNT(*) FROM unit_authors WHERE unit_authors.unit=units.unit AND address IN(?)) AS count \n\
+							(SELECT COUNT(*) FROM trustme WHERE trustme.unit=units.unit) AS count \n\
 						FROM units \n\
 						WHERE unit IN(?) \n\
 						ORDER BY witnessed_level DESC, \n\
 							level-witnessed_level ASC, \n\
 							unit ASC \n\
 						LIMIT 1", 
-						[arrWitnesses, arrLaterUnits],
+						[arrLaterUnits],
 						function(rows){
 							var row = rows[0];
 							if (row.count > 0)
@@ -628,12 +627,8 @@ function determineIfStableInLaterUnits(conn, earlier_unit, arrLaterUnits, handle
 								FROM units \n\
 								LEFT JOIN parenthoods ON units.unit=child_unit \n\
 								LEFT JOIN units AS punits ON parent_unit=punits.unit AND punits.witnessed_level >= units.witnessed_level \n\
-								WHERE units.unit IN(?) AND punits.unit IS NULL AND ( \n\
-									SELECT COUNT(*) \n\
-									FROM unit_witnesses \n\
-									WHERE unit_witnesses.unit IN(units.unit, units.witness_list_unit) AND unit_witnesses.address IN(?) \n\
-								)>=?",
-								[arrAltBestChildren, arrWitnesses, constants.COUNT_WITNESSES - constants.MAX_WITNESS_LIST_MUTATIONS],
+								WHERE units.unit IN(?) AND punits.unit IS NULL",
+								[arrAltBestChildren],
 								function(max_alt_rows){
 									if (max_alt_rows.length !== 1)
 										throw Error("not a single max alt level");
@@ -698,6 +693,12 @@ function readBestParentAndItsWitnesses(conn, unit, handleBestParentAndItsWitness
 		storage.readWitnesses(conn, props.best_parent_unit, function(arrWitnesses){
 			handleBestParentAndItsWitnesses(props.best_parent_unit, arrWitnesses);
 		});
+	});
+}
+
+function readBestParent(conn, unit, handleBestParent){
+	storage.readStaticUnitProps(conn, unit, function(props){
+		handleBestParent(props.best_parent_unit);
 	});
 }
 
@@ -900,7 +901,8 @@ function markMcIndexStable(conn, mci, onDone){
 			},
 			function(cb){
 				profiler.stop('mc-headers-commissions');
-				paid_witnessing.updatePaidWitnesses(conn, cb);
+				// paid_witnessing.updatePaidWitnesses(conn, cb);
+				cb();
 			}
 		], function(){
 			process.nextTick(function(){ // don't call it synchronously with event emitter
