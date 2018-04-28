@@ -605,6 +605,15 @@ function issueAddress(wallet, is_change, address_index, handleNewAddress){
 	}, 5000);
 }
 
+function issueAddressSync(wallet, is_change, address_index, handleNewAddress){
+	breadcrumbs.add('issueAddress wallet='+wallet+', is_change='+is_change+', index='+address_index);
+	deriveAndRecordAddress(wallet, is_change, address_index, function(address){
+		handleNewAddress({address: address, is_change: is_change, address_index: address_index, creation_ts: parseInt(Date.now()/1000)});
+	});
+	setTimeout(function(){
+		checkAddress(0, 0, 0);
+	}, 5000);
+}
 
 function readAddressByIndex(wallet, is_change, address_index, handleAddress){
 	db.query(
@@ -820,3 +829,4 @@ exports.readCosigners = readCosigners;
 
 exports.derivePubkey = derivePubkey;
 exports.issueAddress = issueAddress;
+exports.issueAddressSync = issueAddressSync;
