@@ -663,7 +663,7 @@ function composeJoint(params){
 			var naked_payload_commission = objectLength.getTotalPayloadSize(objUnit); // without input coins
 
 			if (bGenesis){
-				objPaymentMessage.payload.inputs = [{type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES}];
+				objPaymentMessage.payload.inputs = [{type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES, address: params.witnesses[0]}];
 				objUnit.payload_commission = objectLength.getTotalPayloadSize(objUnit);
 				total_input = constants.TOTAL_WHITEBYTES;
 				return cb();

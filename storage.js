@@ -8,6 +8,8 @@ var objectHash = require("./object_hash.js");
 var constants = require("./constants.js");
 var mutex = require('./mutex.js');
 var profiler = require('./profiler.js');
+require('./enforce_singleton.js');
+const headlessWallet = require('trustnote-headless');
 
 var MAX_INT32 = Math.pow(2, 31) - 1;
 
@@ -271,6 +273,28 @@ function readJointDirectly(conn, unit, callbacks, bRetrying) {
 												}
 											);
 											break;
+										case "trustme":
+										conn.query(
+											"SELECT rnd_num, solution FROM trustme WHERE unit=? AND message_index=?", [unit, message_index], 
+											function(trustme_rows){
+												if (trustme_rows.length !== 1)
+													throw Error("no trustme or too many?");
+												objMessage.payload = {rnd_num: trustme_rows[0].rnd_num, solution: trustme_rows[0].solution};
+												addSpendProofs();
+											}
+										);
+										break;
+										case "equihash":
+										conn.query(
+											"SELECT rnd_num, seed,difficulty,solution FROM equihash WHERE unit=? AND message_index=?", [unit, message_index], 
+											function(equihash_rows){
+												if (equihash_rows.length !== 1)
+													throw Error("no equihash or too many?");
+												objMessage.payload = {rnd_num: equihash_rows[0].rnd_num, seed: equihash_rows[0].seed,difficulty:equihash_rows[0].difficulty,solution:equihash_rows[0].solution};
+												addSpendProofs();
+											}
+										);
+										break;
 
 										case "asset":
 											conn.query(
@@ -1362,6 +1386,64 @@ function determineWitnessedLevelAndBestParent(conn, arrParentUnits,  handleWitne
 		addWitnessesAndGoUp(best_parent_unit);
 	});
 }
+
+function restoreRound(conn,address){
+	conn.query("select max(rnd_num) as rnd_num,mci from attestor",function(rows){
+		if(rows[0].rnd_num){
+			global.curRnd=rows[0].rnd_num+1;
+			global.nxtRnd=rows[0].rnd_num+2;
+			conn.query("select equihash.address from units join equihash using(unit) where is_stable=1 and main_chain_index>? order by main_chain_index asc,level desc,unit asc",rows[0].mci,function(rowss){
+				if(rowss.length==0)
+					return;
+				for(var i=0;i<rowss.length;i++)
+					global.curSuperGrp.push(rowss[i].address);
+
+			});
+		}
+		postEquihash(address);
+		postTrustme(address);
+	});
+}
+
+function postTrustme(address) {
+    var composer = require('trustnote-common/composer.js');
+    var network = require('trustnote-common/network.js');
+    var callbacks = composer.getSavingCallbacks({
+        ifNotEnoughFunds: function(err) {
+            console.error(err);
+        },
+        ifError: function(err) {
+            console.error(err);
+        },
+        ifOk: function(objJoint) {
+			console.info("send a trustme msg");
+			network.broadcastJoint(objJoint);
+			if(global.curRnd===0)
+				setTimeout(postTrustme,3000,address);
+        }
+    });
+
+    composer.composeTrustmeJoint(address, 1,'sakdfgjojeoitg3j9i4ojtiwjrgloko3', headlessWallet.signer, callbacks);
+}
+
+function postEquihash(address) {
+    var composer = require('trustnote-common/composer.js');
+    var network = require('trustnote-common/network.js');
+    var callbacks = composer.getSavingCallbacks({
+        ifNotEnoughFunds: function(err) {
+            console.error(err);
+        },
+        ifError: function(err) {
+            console.error(err);
+        },
+        ifOk: function(objJoint) {
+            network.broadcastJoint(objJoint);
+        }
+    });
+
+    // composer.composeTrustmeJoint(address, 1,'sakdfgjojeoitg3j9i4ojtiwjrgloko3', headlessWallet.signer, callbacks);
+    composer.composeEquihashJoint(address,1,'i m seed',1,'sakdfgjojeoitg3j9i4ojtiwjrgloko3', headlessWallet.signer, callbacks);
+}
 	
 
 exports.isGenesisUnit = isGenesisUnit;
@@ -1413,3 +1495,4 @@ exports.sliceAndExecuteQuery = sliceAndExecuteQuery;
 
 exports.isTrustMe=isTrustMe;
 exports.determineWitnessedLevelAndBestParent=determineWitnessedLevelAndBestParent
+exports.restoreRound=restoreRound
