@@ -259,6 +259,17 @@ function readJointDirectly(conn, unit, callbacks, bRetrying) {
 												}
 											);
 											break;
+                                                                                 case "trustme":
+                                                                                conn.query(
+                                                                                        "SELECT rnd_num, solution FROM trustme WHERE unit=? AND message_index=?", [unit, message_index],
+                                                                                        function(trustme_rows){
+                                                                                                if (trustme_rows.length !== 1)
+                                                                                                        throw Error("no trustme or too many?");
+                                                                                                objMessage.payload = {rnd_num: trustme_rows[0].rnd_num, solution: trustme_rows[0].solution};
+                                                                                                addSpendProofs();
+                                                                                        }
+                                                                                );
+                                                                                break;
 
 										 case "vote":
 											conn.query(
