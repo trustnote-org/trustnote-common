@@ -14,8 +14,6 @@ var eventBus = require('./event_bus.js');
 var profiler = require('./profiler.js');
 var breadcrumbs = require('./breadcrumbs.js');
 var conf = require('./conf.js');
-var trustme = require('./trustme.js');
-var headlessWallet = require('trustnote-headless');
 
 
 function updateMainChain(conn, last_unit, onDone) {
@@ -714,63 +712,7 @@ function markMcIndexStable(conn, mci, onDone) {
 		}
 	);
 
-	function insertAttestor(conn, mci) {
-		for (var i = 0; i < global.curSuperGrp.length; i++) {
-			conn.query("insert into attestor values(?,?,?)", [global.curRnd, global.curSuperGrp[i], mci]);
-		}
-	}
-
-	function updateSuperGrp(conn, mci) {
-		console.info("mainchain advance to", mci);
-		var equihash = require('./equihash.js');
-
-		conn.query("select rnd_num,address from units join equihash using(unit) where main_chain_index=? order by units.level,units.unit limit ?", [mci, constants.COUNT_WITNESSES], function (rows) {
-			if (rows.length === 0)
-				return;
-			async.eachSeries(rows,
-				function (row, cb) {
-					if (row.rnd_num > global.nxtRnd) {
-						insertAttestor(conn, mci);
-						global.curRnd = row.rnd_num - 1;
-						global.nxtRnd = row.rnd_num;
-						global.nxtSuperGrp = [];
-						global.curSuperGrp = [];
-						global.nxtSuperGrp.push(row.address);
-					} else if (row.rnd_num === global.nxtRnd) {
-						if (global.nxtSuperGrp.indexOf(row.address) < 0) {
-							global.nxtSuperGrp.push(row.address);
-							if (global.nxtSuperGrp.length === constants.COUNT_WITNESSES) {
-								// let readSingleAddress = conf.bSingleAddress ? headlessWallet.readSingleAddress : headlessWallet.readFirstAddress;
-								headlessWallet.readSingleAddress(function (address) {
-									if (conf.bServeAsSuperNode) {
-										process.nextTick(equihash.startEquihash, address, global.nxtRnd + 1);
-										if (global.trustme_interval) {
-											clearInterval(global.trustme_interval);
-											console.info("stop trustme of round", global.curRnd);
-										}
-										if (global.nxtSuperGrp.indexOf(address) > -1) {
-											global.trustme_interval = setInterval(trustme.postTrustme, 6000, global.nxtRnd,global.solution);
-										}
-									}
-									console.info("round change from %d to %d", global.curRnd, global.nxtRnd);
-									insertAttestor(conn, mci);
-									global.curSuperGrp = global.nxtSuperGrp;
-									global.nxtSuperGrp = [];
-									global.curRnd = global.nxtRnd++;
-									cb();
-								});
-							}
-						}
-					}
-				},
-				function (err) {
-					if (err)
-						console.log(err);
-				}
-			);
-		});
-	}
-
+	
 
 	function handleNonserialUnits() {
 		conn.query(
@@ -800,7 +742,6 @@ function markMcIndexStable(conn, mci, onDone) {
 						//    throw "stop";
 						// next op
 						addBalls();
-						updateSuperGrp(conn, mci);
 					}
 				);
 			}
