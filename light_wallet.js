@@ -89,8 +89,9 @@ function refreshLightClientHistory(){
 	eventBus.emit('refresh_light_started');
 	network.findOutboundPeerOrConnect(network.light_vendor_url, function onLocatedLightVendor(err, ws){
 		var finish = function(msg){
-			if (msg)
-				console.log(msg);
+			if (msg) {
+				eventBus.emit('refresh_light_timeout');
+			}
 			if (ws)
 				ws.bRefreshingHistory = false;
 			eventBus.emit('refresh_light_done');

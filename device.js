@@ -28,6 +28,8 @@ var objMyTempDeviceKey;
 var objMyPrevTempDeviceKey;
 var saveTempKeys; // function that saves temp keys
 var bScheduledTempDeviceKeyRotation = false;
+var loginHubTimeoutCount = 0;
+var stableHub = "stable.trustnote.org/tn";
 
 
 function getMyDevicePubKey(){
@@ -161,14 +163,24 @@ function loginToHub(){
 		return console.log("my_device_hub not set yet, can't log in");
 	console.log("logging in to hub "+my_device_hub);
 	network.findOutboundPeerOrConnect(conf.WS_PROTOCOL+my_device_hub, function onLocatedHubForLogin(err, ws){
-		if (err)
+		if (err) {
+			loginHubTimeoutCount++;
+			if(loginHubTimeoutCount > 3) {
+				loginHubTimeoutCount = 0;
+				setDeviceHub(stableHub);
+				return;
+			}
+			loginToHub();
 			return;
+		}
 		if (ws.bLoggedIn)
 			return;
 		if (ws.received_challenge)
 			sendLoginCommand(ws, ws.received_challenge);
-		else
+		else {
 			ws.bLoggingIn = true;
+			loginHubTimeoutCount = 0;
+		}
 		console.log('done loginToHub');
 	});
 }
