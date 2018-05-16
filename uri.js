@@ -94,6 +94,8 @@ function parseUri(uri, callbacks){
 	if (arrParts.length > 2)
 		return callbacks.ifError("too many question marks");
 	var address = arrParts[0];
+	if(address.length == 34)
+		address = address.substr(2, 34);
 	var query_string = arrParts[1];
 	if (!ValidationUtils.isValidAddress(address))
 		return callbacks.ifError("address "+address+" is invalid");
