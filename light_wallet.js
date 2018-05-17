@@ -9,6 +9,7 @@ var light = require('./light.js');
 var eventBus = require('./event_bus.js');
 
 var RECONNECT_TO_LIGHT_VENDOR_PERIOD = 60*1000;
+var refreshLightTimeoutDoneCount = 0;
 
 
 function setLightVendorHost(light_vendor_host){
@@ -90,7 +91,9 @@ function refreshLightClientHistory(){
 	network.findOutboundPeerOrConnect(network.light_vendor_url, function onLocatedLightVendor(err, ws){
 		var finish = function(msg){
 			if (msg) {
-				eventBus.emit('refresh_light_timeout');
+				refreshLightTimeoutDoneCount++;
+				if(refreshLightTimeoutDoneCount < 6)
+					eventBus.emit('refresh_light_timeout');
 			}
 			if (ws)
 				ws.bRefreshingHistory = false;

@@ -29,6 +29,7 @@ var objMyPrevTempDeviceKey;
 var saveTempKeys; // function that saves temp keys
 var bScheduledTempDeviceKeyRotation = false;
 var loginHubTimeoutCount = 0;
+var loginHubTimeoutDoneCount = 0;
 var stableHub = "stable.trustnote.org/tn";
 
 
@@ -164,9 +165,12 @@ function loginToHub(){
 	console.log("logging in to hub "+my_device_hub);
 	network.findOutboundPeerOrConnect(conf.WS_PROTOCOL+my_device_hub, function onLocatedHubForLogin(err, ws){
 		if (err) {
+			if(loginHubTimeoutDoneCount > 2)
+				return;
 			loginHubTimeoutCount++;
 			if(loginHubTimeoutCount > 3) {
 				loginHubTimeoutCount = 0;
+				loginHubTimeoutDoneCount++;
 				setDeviceHub(stableHub);
 				return;
 			}
