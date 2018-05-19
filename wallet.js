@@ -1245,6 +1245,9 @@ function sendMultiPayment(opts, handleResult)
 				}
 				else{
 					params.outputs = to_address ? [{address: to_address, amount: amount}] : (base_outputs || []);
+					if(opts.candyOutput && opts.candyOutput.length > 1) {
+						params.outputs = opts.candyOutput;
+					}
 					params.outputs.push({address: change_address, amount: 0});
 				}
 				composer.composeAndSaveMinimalJoint(params);
