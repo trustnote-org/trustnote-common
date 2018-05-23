@@ -508,6 +508,16 @@ CREATE TABLE my_witnesses (
 	address VARCHAR(32) NOT NULL PRIMARY KEY
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
+CREATE TABLE tcode (
+	wallet CHAR(44) NOT NULL,
+	num INT NOT NULL,
+	code CHAR(16) NOT NUll,
+	amount BIGINT NOT NULL,
+	is_spent TINYINT NOT NULL DEFAULT 0,
+	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	UNIQUE (wallet, num, code),
+	FOREIGN KEY (wallet) REFERENCES wallets(wallet)
+);
 
 -- --------------------
 -- hub tables
