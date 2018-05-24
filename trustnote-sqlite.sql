@@ -528,7 +528,7 @@ CREATE TABLE my_witnesses (
 
 CREATE TABLE tcode (
 	wallet CHAR(44) NOT NULL,
-	num INT NOT NULL,
+	num CHAR(16) NOT NULL,
 	code CHAR(16) NOT NUll,
 	amount BIGINT NOT NULL,
 	is_spent TINYINT NOT NULL DEFAULT 0,
