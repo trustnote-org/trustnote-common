@@ -19,6 +19,8 @@ var conf = require('./conf.js');
 var profiler = require('./profiler.js');
 var breadcrumbs = require('./breadcrumbs.js');
 
+var process=require('process');
+
 var MAX_INT32 = Math.pow(2, 31) - 1;
 
 var hasFieldsExcept = ValidationUtils.hasFieldsExcept;
@@ -395,8 +397,14 @@ function validateParents(conn, objJoint, objValidationState, callback){
 	async.eachSeries(
 		objUnit.parent_units, 
 		function(parent_unit, cb){
-			if (parent_unit <= prev)
+			if (parent_unit <= prev){
+				console.error("not ordered parents are:");
+				for(var i=0;i<objUnit.parent_units.length;i++)
+					console.error(objUnit.parent_units[i]);
 				return cb(createError("parent units not ordered"));
+			}
+
+				
 			prev = parent_unit;
 			conn.query("SELECT units.*"+field+" FROM units "+join+" WHERE units.unit=?", [parent_unit], function(rows){
 				if (rows.length === 0){
@@ -629,7 +637,7 @@ function validateAuthor(conn, objAuthor, objUnit, objValidationState, callback){
 	function findConflictingUnits(handleConflictingUnits){
 		var cross = (objValidationState.max_known_mci - objValidationState.max_parent_limci < 1000) ? 'CROSS' : '';
 		conn.query( // _left_ join forces use of indexes in units
-			"SELECT unit, is_stable \n\
+			"SELECT unit, is_stable,main_chain_index,latest_included_mc_index \n\
 			FROM units \n\
 			"+cross+" JOIN unit_authors USING(unit) \n\
 			WHERE address=? AND (main_chain_index>? OR main_chain_index IS NULL) AND unit != ?",
@@ -640,12 +648,23 @@ function validateAuthor(conn, objAuthor, objUnit, objValidationState, callback){
 					rows,
 					function(row, cb){
 						graph.determineIfIncludedOrEqual(conn, row.unit, objUnit.parent_units, function(bIncluded){
-							if (!bIncluded)
+							if (!bIncluded){
 								arrConflictingUnitProps.push(row);
+							}
+								
 							cb();
 						});
 					},
 					function(){
+						if(arrConflictingUnitProps.length>0){
+							console.error("objValidationState.max_parent_limci=",objValidationState.max_parent_limci);	
+							console.error("objAuthor.address=",objAuthor.address);
+							console.error("arrConflictingUnitProps are:");
+							arrConflictingUnitProps.forEach(function(prop){
+								console.error(prop.unit,prop.is_stable,prop.main_chain_index,prop.latest_included_mc_index);
+							});	
+							process.exit(1);
+						}
 						handleConflictingUnits(arrConflictingUnitProps);
 					}
 				);

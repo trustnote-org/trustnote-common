@@ -555,7 +555,7 @@ function composeJoint(params){
 				return checkForUnstablePredecessors();
 			}
 			parentComposer.pickParentUnitsAndLastBall(
-				conn, 
+				conn, arrPayingAddresses[0],
 				function(err, arrParentUnits, last_stable_mc_ball, last_stable_mc_ball_unit, last_stable_mc_ball_mci){
 					if (err)
 						return cb("unable to find parents: "+err);
@@ -663,7 +663,10 @@ function composeJoint(params){
 			var naked_payload_commission = objectLength.getTotalPayloadSize(objUnit); // without input coins
 
 			if (bGenesis){
-				objPaymentMessage.payload.inputs = [{type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES, address: params.witnesses[0]}];
+				if(objUnit.authors.length>1)
+					 objPaymentMessage.payload.inputs = [{type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES, address: params.witnesses[0]}];
+				else
+					objPaymentMessage.payload.inputs = [{type: "issue", serial_number: 1, amount: constants.TOTAL_WHITEBYTES}];
 				objUnit.payload_commission = objectLength.getTotalPayloadSize(objUnit);
 				total_input = constants.TOTAL_WHITEBYTES;
 				return cb();

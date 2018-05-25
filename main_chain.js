@@ -297,6 +297,69 @@ function updateMainChain(conn, last_unit, onDone) {
 						throw Error("not a single mc wl");
 					// this is the level when we colect 7 witnesses if walking up the MC from its end
 					var mc_end_witnessed_level = wl_rows[0].witnessed_level;
+
+					// function findMinMcWL(level, start_unit, handleNext) {
+					// 	var arrAddress = [];
+
+					// 	function find(start_unit) {
+					// 		conn.query("select unit_authors.address,witnessed_level from units join trustme on units.unit=trustme.unit join unit_authors on units.unit=unit_authors.unit \n\
+					// 			where best_parent_unit=? and is_on_main_chain=1 and level>?", [start_unit, level], function (rows) {
+					// 				if (rows.length > 1)
+					// 					throw Error("on main chain best child more than 1");
+					// 				if (rows.length === 0)
+					// 					return handleNext(0);
+					// 				var row = rows[0];
+					// 				if (arrAddress.indexOf(row.address) < 0)
+					// 					arrAddress.push(row.address);
+					// 				(arrAddress.length < constants.MAJORITY_OF_WITNESSES) ? find(row.address) : handleNext(row.witnessed_level);
+					// 			});
+					// 	}
+					// 	find(start_unit);
+					// }
+
+					// findMinMcWL(mc_end_witnessed_level, last_stable_mc_unit, function (min_mc_wl) {
+					// 	if (arrAltBranchRootUnits.length === 0) { // no alt branches
+					// 		if (min_mc_wl >= first_unstable_mc_level)
+					// 			return advanceLastStableMcUnitAndTryNext();
+					// 		return finish();
+					// 		/*
+					// 		// if there are 12 witnesses on the MC, the next unit is stable
+					// 		// This is not reliable. Adding a new unit after this one (not descending from this one)
+					// 		// could change the MC near the tip and route the MC away from a witness-authored unit, thus decreasing the count below 12
+					// 		conn.query(
+					// 			"SELECT COUNT(DISTINCT address) AS count_witnesses FROM units JOIN unit_authors USING(unit) \n\
+					// 			WHERE is_on_main_chain=1 AND main_chain_index>=? AND address IN(?)",
+					// 			[first_unstable_mc_index, arrWitnesses],
+					// 			function(count_witnesses_rows){
+					// 				(count_witnesses_rows[0].count_witnesses === constants.COUNT_WITNESSES) 
+					// 					? advanceLastStableMcUnitAndTryNext() : finish();
+					// 			}
+					// 		);
+					// 		return;
+					// 		*/
+					// 	}
+					// 	createListOfBestChildren(arrAltBranchRootUnits, function (arrAltBestChildren) {
+					// 		// Compose a set S of units that increase WL, that is their own WL is greater than that of every parent. 
+					// 		// In this set, find max L. Alt WL will never reach it. If min_mc_wl > L, next MC unit is stable.
+					// 		// Also filter the set S to include only those units that are conformant with the last stable MC unit.
+					// 		conn.query(
+					// 			"SELECT MAX(units.level) AS max_alt_level \n\
+					// 				FROM units \n\
+					// 				LEFT JOIN parenthoods ON units.unit=child_unit \n\
+					// 				LEFT JOIN units AS punits ON parent_unit=punits.unit AND punits.witnessed_level >= units.witnessed_level \n\
+					// 				WHERE units.unit IN(?) AND punits.unit IS NULL" ,
+					// 			[arrAltBestChildren],
+					// 			function (max_alt_rows) {
+					// 				if (max_alt_rows.length !== 1)
+					// 					throw Error("not a single max alt level");
+					// 				var max_alt_level = max_alt_rows[0].max_alt_level;
+					// 				(min_mc_wl > max_alt_level) ? advanceLastStableMcUnitAndTryNext() : finish();
+					// 			}
+					// 		);
+					// 	});
+					// });
+
+
 					conn.query(
 						// among these 7 witnesses, find min wl
 						"SELECT MIN(witnessed_level) AS min_mc_wl FROM units JOIN trustme USING(unit) \n\
@@ -457,16 +520,16 @@ function determineIfStableInLaterUnits(conn, earlier_unit, arrLaterUnits, handle
 				//console.log("first_unstable_mc_index", first_unstable_mc_index);
 				//console.log("first_unstable_mc_level", first_unstable_mc_level);
 				//console.log("alt", arrAltBranchRootUnits);
-
 				function findMinMcWitnessedLevel(handleMinMcWl) {
 					var min_mc_wl = Number.MAX_VALUE;
 					var count = 0;
-
+					var addresses = [];
 					function goUp(start_unit) {
+						if (!start_unit)
+							handleMinMcWl(0);
 						conn.query(
-							"SELECT best_parent_unit, witnessed_level, \n\
-								(SELECT COUNT(*) FROM trustme WHERE trustme.unit=units.unit) AS count \n\
-							FROM units WHERE unit=?", [start_unit],
+							"SELECT best_parent_unit, witnessed_level \n\
+						FROM units WHERE unit=?", [start_unit],
 							function (rows) {
 								if (rows.length !== 1) {
 									console.error("findMinMcWitnessedLevel.goUp rows.length=", rows.length, " start_unit=", start_unit);
@@ -474,30 +537,38 @@ function determineIfStableInLaterUnits(conn, earlier_unit, arrLaterUnits, handle
 								}
 
 								var row = rows[0];
-								if (row.count > 0 && row.witnessed_level < min_mc_wl)
-									min_mc_wl = row.witnessed_level;
-								count += row.count;
-								(count < constants.MAJORITY_OF_WITNESSES) ? goUp(row.best_parent_unit) : handleMinMcWl(min_mc_wl);
+
+								conn.query("SELECT unit_authors.address FROM trustme join unit_authors using(unit) WHERE trustme.unit=?", [start_unit], function (ros) {
+									if (ros.length > 0 && row.witnessed_level < min_mc_wl) {
+										min_mc_wl = row.witnessed_level;
+										if (addresses.indexOf(ros[0].address) < 0)
+											addresses.push(ros[0].address);
+									}
+									(addresses.length < constants.MAJORITY_OF_WITNESSES) ? goUp(row.best_parent_unit) : handleMinMcWl(min_mc_wl);
+								});
 							}
 						);
 					}
 
 					conn.query(
-						"SELECT witnessed_level, best_parent_unit, \n\
-							(SELECT COUNT(*) FROM trustme WHERE trustme.unit=units.unit) AS count \n\
-						FROM units \n\
-						WHERE unit IN(?) \n\
-						ORDER BY witnessed_level DESC, \n\
-							level-witnessed_level ASC, \n\
-							unit ASC \n\
-						LIMIT 1",
+						"SELECT unit,witnessed_level, best_parent_unit \n\
+					FROM units \n\
+					WHERE unit IN(?) \n\
+					ORDER BY witnessed_level DESC, \n\
+						level-witnessed_level ASC, \n\
+						unit ASC \n\
+					LIMIT 1",
 						[arrLaterUnits],
 						function (rows) {
 							var row = rows[0];
-							if (row.count > 0)
-								min_mc_wl = row.witnessed_level;
-							count += row.count;
-							goUp(row.best_parent_unit);
+							conn.query("SELECT unit_authors.address FROM trustme join unit_authors using(unit) WHERE trustme.unit=?", [row.unit], function (ros) {
+								if (ros.length > 0) {
+									min_mc_wl = row.witnessed_level;
+									addresses.push(ros[0].address);
+								}
+								goUp(row.best_parent_unit);
+							});
+
 						}
 					);
 				}
@@ -712,7 +783,7 @@ function markMcIndexStable(conn, mci, onDone) {
 		}
 	);
 
-	
+
 
 	function handleNonserialUnits() {
 		conn.query(

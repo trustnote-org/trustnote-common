@@ -1360,6 +1360,7 @@ function determineWitnessedLevelAndBestParent(conn, arrParentUnits,  handleWitne
 	var arrCollectedWitnesses = [];
 	var my_best_parent_unit;
 	var count=0;
+	var arrAddresses=[];
 
 	function addWitnessesAndGoUp(start_unit){
 		readStaticUnitProps(conn, start_unit, function(props){
@@ -1369,12 +1370,26 @@ function determineWitnessedLevelAndBestParent(conn, arrParentUnits,  handleWitne
 				throw Error("null level in updateWitnessedLevel");
 			if (level === 0) // genesis
 				return handleWitnessedLevelAndBestParent(0, my_best_parent_unit);
-			isTrustMe(conn,start_unit,function(is_trust_me){
-				if(is_trust_me)
-					count++;
-					(count < constants.MAJORITY_OF_WITNESSES) 
+			// isTrustMe(conn,start_unit,function(is_trust_me){
+			// 	if(is_trust_me)
+			// 		count++;
+			// 		(count < constants.MAJORITY_OF_WITNESSES) 
+			// 				? addWitnessesAndGoUp(best_parent_unit) : handleWitnessedLevelAndBestParent(level, my_best_parent_unit);
+			// });
+
+			conn.query("select address from unit_authors join trustme using(unit) where trustme.unit=?",[start_unit],function(rows){
+				async.eachSeries(rows,function(row,cb){
+					if(arrAddresses.indexOf(row.address)<0)
+						arrAddresses.push(row.address);
+					cb();
+				},function(err){
+					if(err)
+						console.error(err);
+				});
+				(arrAddresses.length < constants.MAJORITY_OF_WITNESSES) 
 							? addWitnessesAndGoUp(best_parent_unit) : handleWitnessedLevelAndBestParent(level, my_best_parent_unit);
 			});
+
 		});
 	}
 
@@ -1436,5 +1451,5 @@ exports.forgetUnit = forgetUnit;
 
 exports.sliceAndExecuteQuery = sliceAndExecuteQuery;
 
-exports.isTrustMe=isTrustMe;
+// exports.isTrustMe=isTrustMe;
 exports.determineWitnessedLevelAndBestParent=determineWitnessedLevelAndBestParent

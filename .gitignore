@@ -45,3 +45,5 @@ Session.vim
 
 *.iml
 .idea
+
+test.js

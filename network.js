@@ -1018,7 +1018,6 @@ function handleOnlineJoint(ws, objJoint, onDone){
 		onDone = function(){};
 	var unit = objJoint.unit.unit;
 	delete objJoint.unit.main_chain_index;
-	console.info("received joint:",objJoint);
 	handleJoint(ws, objJoint, false, {
 		ifUnitInWork: onDone,
 		ifUnitError: function(error){

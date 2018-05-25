@@ -371,14 +371,8 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 		
 		
 		function updateWitnessedLevel(cb){
-				updateWitnessedLevelByWitnesslist(objUnit.witnesses, cb);
-		}
-		
-		// The level at which we collect at least 7 distinct witnesses while walking up the main chain from our unit.
-		// The unit itself is not counted even if it is authored by a witness
-		function updateWitnessedLevelByWitnesslist(arrWitnesses, cb){
 			var arrCollectedWitnesses = [];
-			var count=0;
+			var addresses1=[];
 			
 			function setWitnessedLevel(witnessed_level){
 				profiler.start();
@@ -399,20 +393,41 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 					if (level === 0) // genesis
 						return setWitnessedLevel(0);
 					profiler.start();
-					storage.isTrustMe(conn, start_unit, function(is_trust_me){
+					// storage.isTrustMe(conn, start_unit, function(is_trust_me){
+					// 	profiler.stop('write-wl-select-authors');
+					// 	profiler.start();
+					// 	if(is_trust_me)
+					// 		count++;
+					// 	profiler.stop('write-wl-search');
+					// 	(count < constants.MAJORITY_OF_WITNESSES) 
+					// 		? addWitnessesAndGoUp(best_parent_unit) : setWitnessedLevel(level);
+					// });
+
+					conn.query("select unit_authors.address from unit_authors join trustme using(unit) where trustme.unit=?",[start_unit],function(rows){
 						profiler.stop('write-wl-select-authors');
 						profiler.start();
-						if(is_trust_me)
-							count++;
+						async.eachSeries(rows,function(row,cb){
+							if(addresses1.indexOf(row.address)<0)
+								addresses1.push(row.address);
+							cb();
+						},function cb(err){
+							if(err)
+								console.error(err);
+						});
 						profiler.stop('write-wl-search');
-						(count < constants.MAJORITY_OF_WITNESSES) 
-							? addWitnessesAndGoUp(best_parent_unit) : setWitnessedLevel(level);
+						(addresses1.length < constants.MAJORITY_OF_WITNESSES) ? addWitnessesAndGoUp(best_parent_unit) : setWitnessedLevel(level);
 					});
 				});
 			}
 			
 			profiler.stop('write-update');
 			addWitnessesAndGoUp(my_best_parent_unit);
+		}
+		
+		// The level at which we collect at least 7 distinct witnesses while walking up the main chain from our unit.
+		// The unit itself is not counted even if it is authored by a witness
+		function updateWitnessedLevelByWitnesslist(arrWitnesses, cb){
+			
 		}
 		
 		
