@@ -749,6 +749,9 @@ function composeJoint(params){
 					objJoint.unit.timestamp = Math.round(Date.now()/1000); // light clients need timestamp
 					if (Object.keys(assocPrivatePayloads).length === 0)
 						assocPrivatePayloads = null;
+					// Victor ShareAddress 
+					if (params.arrShareDefinition)
+						objJoint.arrShareDefinition = params.arrShareDefinition;
 					//profiler.stop('compose');
 					callbacks.ifOk(objJoint, assocPrivatePayloads, unlock_callback);
 				}

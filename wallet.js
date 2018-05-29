@@ -1189,6 +1189,10 @@ function sendMultiPayment(opts, handleResult)
 				}
 			};
 
+			// Victor ShareAddress 
+			if (opts.arrDefinition && opts.assocSignersByPath)
+				params.arrShareDefinition = [{"arrDefinition":opts.arrDefinition, "assocSignersByPath":opts.assocSignersByPath}];
+			
 			if (asset){
 				if (bSendAll)
 					throw Error('send_all with asset');

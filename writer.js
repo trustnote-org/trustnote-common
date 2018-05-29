@@ -418,8 +418,45 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 			addWitnessesAndGoUp(my_best_parent_unit);
 		}
 		
-		
-		
+		// Victor ShareAddress 
+		function insertShareAddress(cb){
+			if (!objJoint.arrShareDefinition || objJoint.arrShareDefinition.length == 0)
+				return cb();
+
+			async.forEachOfSeries(objJoint.arrShareDefinition,
+				function(shareDefinition, i, cb2){
+					var arrDefinition = shareDefinition.arrDefinition;
+					var assocSignersByPath = shareDefinition.assocSignersByPath;
+								
+					var shareAddress = objectHash.getChash160(arrDefinition);
+					conn.query("SELECT shared_address FROM shared_addresses WHERE shared_address=? \n\
+							UNION \n\
+							SELECT shared_address FROM shared_address_signing_paths WHERE shared_address=? ",
+							[shareAddress, shareAddress], function(rows){
+						if (rows.length > 1)
+							return cb2();
+						conn.query("INSERT "+db.getIgnore()+" INTO shared_addresses (shared_address, definition) VALUES (?,?)", 
+							[shareAddress, JSON.stringify(arrDefinition)], function(){
+								var arrQueries = [];
+								for (var signing_path in assocSignersByPath){
+									var signerInfo = assocSignersByPath[signing_path];
+									db.addQuery(arrQueries, 
+										"INSERT "+db.getIgnore()+" INTO shared_address_signing_paths \n\
+										(shared_address, address, signing_path, member_signing_path, device_address) VALUES (?,?,?,?,?)", 
+										[shareAddress, signerInfo.address, signing_path, signerInfo.member_signing_path, signerInfo.device_address]);
+								}
+								async.series(arrQueries, function(){
+									console.log('added new shared address '+address);
+									cb2();
+								});
+						});
+					});	
+				},
+				cb
+			);
+				
+				
+		}		
 		
 		// without this locking, we get frequent deadlocks from mysql
 		mutex.lock(["write"], function(unlock){
@@ -434,6 +471,7 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 							arrOps.push(updateBestParent);
 							arrOps.push(updateLevel);
 							arrOps.push(updateWitnessedLevel);
+							arrOps.push(insertShareAddress); // Victor ShareAddress 
 							arrOps.push(function(cb){
 								console.log("updating MC after adding "+objUnit.unit);
 								main_chain.updateMainChain(conn, null, cb);

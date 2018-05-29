@@ -469,6 +469,52 @@ function readJointDirectly(conn, unit, callbacks, bRetrying) {
 							);
 						} // message rows
 					);
+				},
+				function(callback){ // Victor ShareAddress 
+					conn.query(
+						"SELECT address FROM inputs	WHERE unit=? \n\
+						UNION \n\
+						SELECT address FROM outputs WHERE unit=?", 
+						[unit, unit],
+						function(address_rows){
+							var arrAddresses = address_rows.map(function(row){ return row.address; });
+							db.query(
+								"SELECT shared_address, definition FROM shared_addresses WHERE shared_address IN(?)", 
+								[arrAddresses],
+								function(shared_addresses){									
+									if (shared_addresses.length == 0)
+										return callback();
+									objJoint.arrShareDefinition = [];
+									async.eachSeries(shared_addresses,
+										function(shared_address, callback1){
+											var arrDefinition = JSON.parse(shared_address.definition);
+											var assocSignersByPath = {};
+											db.query(
+												"SELECT shared_address, address, signing_path, member_signing_path, device_address  \n\
+												FROM shared_address_signing_paths WHERE shared_address IN(?)", 
+												[shared_address.shared_address],
+												function(signing_paths){
+													if (signing_paths.length == 0)
+														return callback1();
+													signing_paths.forEach(function(signing_path_row){
+														assocSignersByPath[signing_path_row.signing_path] = {
+															device_address: signing_path_row.device_address, 
+															address: signing_path_row.address, 
+															member_signing_path: signing_path_row.member_signing_path
+														};
+													});
+													objJoint.arrShareDefinition.push({"arrDefinition":arrDefinition, "assocSignersByPath":assocSignersByPath});
+												}
+											);
+										},
+										function(){											
+											callback();
+										}
+									);
+								}
+							);
+						}
+					);
 				}
 			], function(){
 				//profiler.stop('read');
