@@ -433,7 +433,7 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 							UNION \n\
 							SELECT shared_address FROM shared_address_signing_paths WHERE shared_address=? ",
 							[shareAddress, shareAddress], function(rows){
-						if (rows.length > 1)
+						if (rows.length > 0)
 							return cb2();
 						conn.query("INSERT "+db.getIgnore()+" INTO shared_addresses (shared_address, definition) VALUES (?,?)", 
 							[shareAddress, JSON.stringify(arrDefinition)], function(){
