@@ -80,7 +80,7 @@ function validate(objJoint, callbacks) {
 		}
 	}
 	else{
-		if (hasFieldsExcept(objJoint, ["unit"]))
+		if (hasFieldsExcept(objJoint, ["unit","arrShareDefinition"]))   // Victor ShareAddress add arrShareDefinition field
 			return callbacks.ifJointError("unknown fields in unit-joint");
 	}
 	
