@@ -217,6 +217,39 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 			}
 		}
 
+		// if (objJoint.arrShareDefinition && objJoint.arrShareDefinition.length > 0){
+		// 	for (var iShares=0; iShares<objJoint.arrShareDefinition.length; iShares++){
+		// 		var shareDefinition = objJoint.arrShareDefinition[iShares];
+		// 		var arrDefinition = shareDefinition.arrDefinition;
+		// 		var assocSignersByPath = shareDefinition.assocSignersByPath;
+							
+		// 		var shareAddress = objectHash.getChash160(arrDefinition);
+		// 		conn.query("SELECT shared_address FROM shared_addresses WHERE shared_address=? \n\
+		// 				UNION \n\
+		// 				SELECT shared_address FROM shared_address_signing_paths WHERE shared_address=? ",
+		// 				[shareAddress, shareAddress], function(rows){
+		// 			if (rows.length == 0){
+						
+		// 				conn.addQuery(arrQueries, "INSERT "+db.getIgnore()+" INTO shared_addresses (shared_address, definition) VALUES (?,?)", 
+		// 					[shareAddress, JSON.stringify(arrDefinition)], function(){
+		// 						for (var signing_path in assocSignersByPath){
+		// 							var signerInfo = assocSignersByPath[signing_path];
+		// 							conn.addQuery(arrQueries, "INSERT "+db.getIgnore()+" INTO shared_address_signing_paths \n\
+		// 								(shared_address, address, signing_path, member_signing_path, device_address) VALUES (?,?,?,?,?)", 
+		// 								[shareAddress, signerInfo.address, signing_path, signerInfo.member_signing_path, signerInfo.device_address],
+		// 								function(){
+		// 									console.log("Insert shared_address_signing_paths " + signing_path + ":" + shareAddress);
+		// 								}
+		// 							);
+		// 						}
+		// 					}
+		// 				);
+		// 			}
+		// 		});	
+				
+		// 	);
+		// }
+
 		var my_best_parent_unit;
 		
 		function determineInputAddressFromSrcOutput(asset, denomination, input, handleAddress){
@@ -432,36 +465,24 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 					conn.query("SELECT shared_address FROM shared_addresses WHERE shared_address=? \n\
 							UNION \n\
 							SELECT shared_address FROM shared_address_signing_paths WHERE shared_address=? ",
-							[shareAddress, shareAddress], function(rows){
-						if (rows.length > 0)
-							return cb2();
-						conn.query("INSERT "+db.getIgnore()+" INTO shared_addresses (shared_address, definition) VALUES (?,?)", 
-							[shareAddress, JSON.stringify(arrDefinition)], function(){
-								function getObjectLength(obj) {
-									var n=0;
-									for(key in obj){
-										 n++;
-									}
-									return n;
-								}
-								var signerSum = getObjectLength(assocSignersByPath);
-								var currentCount = 0;
-								for (var signing_path in assocSignersByPath){
-									currentCount++;
-									var signerInfo = assocSignersByPath[signing_path];
-									conn.query("INSERT "+db.getIgnore()+" INTO shared_address_signing_paths \n\
-										(shared_address, address, signing_path, member_signing_path, device_address) VALUES (?,?,?,?,?)", 
-										[shareAddress, signerInfo.address, signing_path, signerInfo.member_signing_path, signerInfo.device_address],
-										function(){
-											console.log("Insert shared_address_signing_paths " + signing_path + ":" + shareAddress);
-											if(currentCount === signerSum)
-												cb2();
-										}
-									);
-								}
+							[shareAddress, shareAddress], 
+						function(rows){
+							if (rows.length > 0)
+								return cb2();
+							conn.addQuery(arrQueries, 
+								"INSERT "+db.getIgnore()+" INTO shared_addresses (shared_address, definition) VALUES (?,?)", 
+								[shareAddress, JSON.stringify(arrDefinition)]);
+								
+							for (var signing_path in assocSignersByPath){
+								var signerInfo = assocSignersByPath[signing_path];
+								conn.addQuery(arrQueries, 
+									"INSERT "+db.getIgnore()+" INTO shared_address_signing_paths \n\
+									(shared_address, address, signing_path, member_signing_path, device_address) VALUES (?,?,?,?,?)", 
+									[shareAddress, signerInfo.address, signing_path, signerInfo.member_signing_path, signerInfo.device_address]);
 							}
-						);
-					});	
+							cb2();
+						}				
+					);
 				},
 				cb
 			);	
@@ -480,7 +501,6 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 							arrOps.push(updateBestParent);
 							arrOps.push(updateLevel);
 							arrOps.push(updateWitnessedLevel);
-							arrOps.push(insertShareAddress); // Victor ShareAddress 
 							arrOps.push(function(cb){
 								console.log("updating MC after adding "+objUnit.unit);
 								main_chain.updateMainChain(conn, null, cb);
