@@ -437,13 +437,25 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 							return cb2();
 						conn.query("INSERT "+db.getIgnore()+" INTO shared_addresses (shared_address, definition) VALUES (?,?)", 
 							[shareAddress, JSON.stringify(arrDefinition)], function(){
+								function getObjectLength(obj) {
+									var n=0;
+									for(key in obj){
+										 n++;
+									}
+									return n;
+								}
+								var signerSum = getObjectLength(assocSignersByPath);
+								var currentCount = 0;
 								for (var signing_path in assocSignersByPath){
+									currentCount++;
 									var signerInfo = assocSignersByPath[signing_path];
 									conn.query("INSERT "+db.getIgnore()+" INTO shared_address_signing_paths \n\
 										(shared_address, address, signing_path, member_signing_path, device_address) VALUES (?,?,?,?,?)", 
 										[shareAddress, signerInfo.address, signing_path, signerInfo.member_signing_path, signerInfo.device_address],
 										function(){
 											console.log("Insert shared_address_signing_paths " + signing_path + ":" + shareAddress);
+											if(currentCount === signerSum)
+												cb2();
 										}
 									);
 								}
