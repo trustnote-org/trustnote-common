@@ -217,39 +217,6 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 			}
 		}
 
-		// if (objJoint.arrShareDefinition && objJoint.arrShareDefinition.length > 0){
-		// 	for (var iShares=0; iShares<objJoint.arrShareDefinition.length; iShares++){
-		// 		var shareDefinition = objJoint.arrShareDefinition[iShares];
-		// 		var arrDefinition = shareDefinition.arrDefinition;
-		// 		var assocSignersByPath = shareDefinition.assocSignersByPath;
-							
-		// 		var shareAddress = objectHash.getChash160(arrDefinition);
-		// 		conn.query("SELECT shared_address FROM shared_addresses WHERE shared_address=? \n\
-		// 				UNION \n\
-		// 				SELECT shared_address FROM shared_address_signing_paths WHERE shared_address=? ",
-		// 				[shareAddress, shareAddress], function(rows){
-		// 			if (rows.length == 0){
-						
-		// 				conn.addQuery(arrQueries, "INSERT "+db.getIgnore()+" INTO shared_addresses (shared_address, definition) VALUES (?,?)", 
-		// 					[shareAddress, JSON.stringify(arrDefinition)], function(){
-		// 						for (var signing_path in assocSignersByPath){
-		// 							var signerInfo = assocSignersByPath[signing_path];
-		// 							conn.addQuery(arrQueries, "INSERT "+db.getIgnore()+" INTO shared_address_signing_paths \n\
-		// 								(shared_address, address, signing_path, member_signing_path, device_address) VALUES (?,?,?,?,?)", 
-		// 								[shareAddress, signerInfo.address, signing_path, signerInfo.member_signing_path, signerInfo.device_address],
-		// 								function(){
-		// 									console.log("Insert shared_address_signing_paths " + signing_path + ":" + shareAddress);
-		// 								}
-		// 							);
-		// 						}
-		// 					}
-		// 				);
-		// 			}
-		// 		});	
-				
-		// 	);
-		// }
-
 		var my_best_parent_unit;
 		
 		function determineInputAddressFromSrcOutput(asset, denomination, input, handleAddress){
@@ -492,41 +459,43 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 		mutex.lock(["write"], function(unlock){
 			console.log("got lock to write "+objUnit.unit);
 			addInlinePaymentQueries(function(){
-				async.series(arrQueries, function(){
-					profiler.stop('write-raw');
-					profiler.start();
-					var arrOps = [];
-					if (objUnit.parent_units){
-						if (!conf.bLight){
-							arrOps.push(updateBestParent);
-							arrOps.push(updateLevel);
-							arrOps.push(updateWitnessedLevel);
-							arrOps.push(function(cb){
-								console.log("updating MC after adding "+objUnit.unit);
-								main_chain.updateMainChain(conn, null, cb);
-							});
-						}
-						if (preCommitCallback)
-							arrOps.push(function(cb){
-								console.log("executing pre-commit callback");
-								preCommitCallback(conn, cb);
-							});
-					}
-					async.series(arrOps, function(err){
+				insertShareAddress(function(){   // Victor ShareAddress 
+					async.series(arrQueries, function(){
+						profiler.stop('write-raw');
 						profiler.start();
-						conn.query(err ? "ROLLBACK" : "COMMIT", function(){
-							conn.release();
-							console.log((err ? (err+", therefore rolled back unit ") : "committed unit ")+objUnit.unit);
-							profiler.stop('write-commit');
-							profiler.increment();
-							unlock();
-							if (!err)
-								eventBus.emit('saved_unit-'+objUnit.unit, objJoint);
-							if (onDone)
-								onDone(err);
-							count_writes++;
-							if (conf.storage === 'sqlite')
-								updateSqliteStats();
+						var arrOps = [];
+						if (objUnit.parent_units){
+							if (!conf.bLight){
+								arrOps.push(updateBestParent);
+								arrOps.push(updateLevel);
+								arrOps.push(updateWitnessedLevel);
+								arrOps.push(function(cb){
+									console.log("updating MC after adding "+objUnit.unit);
+									main_chain.updateMainChain(conn, null, cb);
+								});
+							}
+							if (preCommitCallback)
+								arrOps.push(function(cb){
+									console.log("executing pre-commit callback");
+									preCommitCallback(conn, cb);
+								});
+						}
+						async.series(arrOps, function(err){
+							profiler.start();
+							conn.query(err ? "ROLLBACK" : "COMMIT", function(){
+								conn.release();
+								console.log((err ? (err+", therefore rolled back unit ") : "committed unit ")+objUnit.unit);
+								profiler.stop('write-commit');
+								profiler.increment();
+								unlock();
+								if (!err)
+									eventBus.emit('saved_unit-'+objUnit.unit, objJoint);
+								if (onDone)
+									onDone(err);
+								count_writes++;
+								if (conf.storage === 'sqlite')
+									updateSqliteStats();
+							});
 						});
 					});
 				});
