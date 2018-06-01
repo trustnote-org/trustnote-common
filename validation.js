@@ -70,7 +70,7 @@ function validate(objJoint, callbacks) {
 	else if ("ball" in objJoint){
 		if (!isStringOfLength(objJoint.ball, constants.HASH_LENGTH))
 			return callbacks.ifJointError("wrong ball length");
-		if (hasFieldsExcept(objJoint, ["unit", "ball", "skiplist_units"]))
+		if (hasFieldsExcept(objJoint, ["unit", "ball", "skiplist_units", "arrShareDefinition"])) // Victor ShareAddress add arrShareDefinition field
 			return callbacks.ifJointError("unknown fields in ball-joint");
 		if ("skiplist_units" in objJoint){
 			if (!isNonemptyArray(objJoint.skiplist_units))
