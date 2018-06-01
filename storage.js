@@ -495,7 +495,7 @@ function readJointDirectly(conn, unit, callbacks, bRetrying) {
 												[shared_address.shared_address],
 												function(signing_paths){
 													if (signing_paths.length == 0)
-														return callback1();
+														callback1();
 													signing_paths.forEach(function(signing_path_row){
 														assocSignersByPath[signing_path_row.signing_path] = {
 															device_address: signing_path_row.device_address, 
@@ -504,6 +504,7 @@ function readJointDirectly(conn, unit, callbacks, bRetrying) {
 														};
 													});
 													objJoint.arrShareDefinition.push({"arrDefinition":arrDefinition, "assocSignersByPath":assocSignersByPath});
+													callback1();
 												}
 											);
 										},
