@@ -460,7 +460,20 @@ function readSharedAddressCosigners(shared_address, handleCosigners){
 		WHERE shared_address=? AND device_address!=?",
 		[shared_address, device.getMyDeviceAddress()],
 		function(rows){
-			handleCosigners(rows);
+			if(rows && rows.length > 0)
+				handleCosigners(rows);
+			else{
+				db.query(
+					"SELECT DISTINCT device_address, shared_address_signing_paths.address AS name, "+db.getUnixTimestamp("shared_addresses.creation_date")+" AS creation_ts \n\
+					FROM shared_address_signing_paths \n\
+					JOIN shared_addresses USING(shared_address) \n\
+					WHERE shared_address=? AND device_address!=?",
+					[shared_address, device.getMyDeviceAddress()],
+					function(rows){
+						handleCosigners(rows);
+					}
+				);
+			}
 		}
 	);
 }
