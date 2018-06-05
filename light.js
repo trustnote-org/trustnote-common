@@ -178,11 +178,17 @@ function prepareHistory(historyRequest, callbacks){
 	if (arrAddresses){
 		// we don't filter sequence='good' after the unit is stable, so the client will see final doublespends too
 		var strAddressList = arrAddresses.map(db.escape).join(', ');
+		// Victor ShareAddress Add last sql
 		arrSelects = ["SELECT DISTINCT unit, main_chain_index, level FROM outputs JOIN units USING(unit) \n\
 			WHERE address IN("+strAddressList+") AND (+sequence='good' OR is_stable=1) \n\
 			UNION \n\
 			SELECT DISTINCT unit, main_chain_index, level FROM unit_authors JOIN units USING(unit) \n\
-			WHERE address IN("+strAddressList+") AND (+sequence='good' OR is_stable=1) \n"];
+			WHERE address IN("+strAddressList+") AND (+sequence='good' OR is_stable=1) \n\
+			UNION \n\
+			SELECT DISTINCT unit, main_chain_index, level FROM outputs \n\
+			JOIN units USING(unit) \n\
+			JOIN shared_address_signing_paths ON outputs.address = shared_address_signing_paths.shared_address \n\
+			WHERE shared_address_signing_paths.address IN("+strAddressList+") AND (+sequence='good' OR is_stable=1) \n"];
 	}
 	if (arrRequestedJoints){
 		var strUnitList = arrRequestedJoints.map(db.escape).join(', ');
