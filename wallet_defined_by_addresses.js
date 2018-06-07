@@ -502,4 +502,3 @@ exports.readSharedAddressDefinition = readSharedAddressDefinition;
 exports.determineIfHasMerkle = determineIfHasMerkle;
 exports.createNewSharedAddress = createNewSharedAddress;
 exports.createNewSharedAddressByTemplate = createNewSharedAddressByTemplate;
-exports.sendNewSharedAddress = sendNewSharedAddress;
