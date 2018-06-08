@@ -474,7 +474,9 @@ function readJointDirectly(conn, unit, callbacks, bRetrying) {
 					conn.query(
 						"SELECT address FROM inputs	WHERE unit=? \n\
 						UNION \n\
-						SELECT address FROM outputs WHERE unit=?", 
+						SELECT address FROM outputs WHERE unit=? \n\
+						UNION \n\
+						SELECT address FROM unit_authors WHERE unit=?",  
 						[unit, unit],
 						function(address_rows){
 							var arrAddresses = address_rows.map(function(row){ return row.address; });
