@@ -460,6 +460,8 @@ function readSharedAddressCosigners(shared_address, handleCosigners){
 		WHERE shared_address=? AND device_address!=?",
 		[shared_address, device.getMyDeviceAddress()],
 		function(rows){
+			// Victor ShareAddress  
+			//handleCosigners(rows);
 			if(rows && rows.length > 0)
 				handleCosigners(rows);
 			else{
