@@ -1,4 +1,4 @@
-/*jslint node: true */
+/* jslint node: true */
 "use strict";
 var _ = require('lodash');
 var async = require('async');
@@ -114,19 +114,39 @@ function updateMainChain(conn, last_unit, onDone) {
 										WHERE child_unit IN(?) AND main_chain_index IS NULL",
 										[arrStartUnits],
 										function (rows) {
-											if (rows.length === 0)
+											if (rows.length === 0){
+												var uniArrUnits=arrUnits.filter(function(elem, index, self) {
+													return index === self.indexOf(elem);
+												})
+												arrUnits=uniArrUnits;
 												return updateMc();
+											}
 											var arrNewStartUnits = rows.map(function (row) { return row.unit; });
 											arrUnits = arrUnits.concat(arrNewStartUnits);
 											goUp(arrNewStartUnits);
 										}
 									);
 								}
-
+								//防止大批量更新使数据库宕掉
 								function updateMc() {
-									conn.query("UPDATE units SET main_chain_index=? WHERE unit IN(?)", [main_chain_index, arrUnits], function () {
+									var step=200;
+									if(arrUnits.length<=step){
+										conn.query("UPDATE units SET main_chain_index=? WHERE unit IN(?)", [main_chain_index, arrUnits], function () {
+											cb();
+										});
+									}else{
+										var arrs=[];
+										
+										for(var i=0;i<arrUnits.length;i+=step){
+											var va=arrUnits.slice(i,i+step);
+											arrs.push(va);
+										}
+										for( var j=0;j<arrs.length;j++){
+											conn.query("UPDATE units SET main_chain_index=? WHERE unit IN(?)", [main_chain_index, arrs[j]]);
+										}
+										
 										cb();
-									});
+									}
 								}
 
 								goUp(arrUnits);
