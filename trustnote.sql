@@ -515,9 +515,9 @@ CREATE TABLE tcode (
 	amount BIGINT NOT NULL,
 	is_spent TINYINT NOT NULL DEFAULT 0,
 	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	UNIQUE (wallet, num, code),
+	UNIQUE KEY byWalletNumCode(wallet, num, code),
 	FOREIGN KEY (wallet) REFERENCES wallets(wallet)
-);
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- --------------------
 -- hub tables
@@ -651,7 +651,7 @@ CREATE TABLE IF NOT EXISTS push_registrations (
     registrationId VARCHAR(200),
     device_address CHAR(33) NOT NULL,
     PRIMARY KEY (device_address)
-);
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 CREATE TABLE chat_messages (
 	id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -666,13 +666,15 @@ CREATE INDEX chatMessagesIndexByDeviceAddress ON chat_messages(correspondent_add
 ALTER TABLE correspondent_devices ADD COLUMN my_record_pref INTEGER DEFAULT 1;
 ALTER TABLE correspondent_devices ADD COLUMN peer_record_pref INTEGER DEFAULT 1;
 
+
 CREATE TABLE watched_light_units (
 	peer VARCHAR(100) NOT NULL,
 	unit CHAR(44) NOT NULL,
 	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (peer, unit)
-);
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 CREATE INDEX wlabyUnit ON watched_light_units(unit);
+
 
 CREATE TABLE bots (
 	id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -680,4 +682,4 @@ CREATE TABLE bots (
 	name VARCHAR(100) NOT NULL UNIQUE,
 	pairing_code VARCHAR(200) NOT NULL,
 	description LONGTEXT NOT NULL
-);
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
