@@ -4,15 +4,19 @@
 var _			= require( 'lodash' );
 var _fs			= require( 'fs' );
 var _util		= require( 'util' );
-var _desktop_app = require('trustnote-common/desktop_app.js');
+var _desktop_app	= require( './desktop_app.js' );
 var _conf		= require( './conf.js' );
 
-var m_sAppDataDir	= _desktop_app.getAppDataDir();
-var m_sLogFilename	= _conf.LOG_FILENAME || ( m_sAppDataDir + '/logex.txt' );
-var m_cWriteStream	= _fs.createWriteStream( m_sLogFilename, { flags : "a" } );
 
-var m_cDoubleArrayCache	= new CDoubleArrayCache();
-var m_nInterval		= null;
+/**
+ *	variables of this module
+ */
+var _sAppDataDir	= _desktop_app.getAppDataDir();
+var _sLogFilename	= _conf.LOG_FILENAME || ( _sAppDataDir + '/log.txt' );
+var _cWriteStream	= _fs.createWriteStream( _sLogFilename, { flags : "a" } );
+
+var _cDoubleArrayCache	= new CDoubleArrayCache();
+var _nInterval		= null;
 
 
 
@@ -64,6 +68,7 @@ function CDoubleArrayCache()
 	////////////////////////////////////////////////////////////////////////////////
 	//	Private
 	//
+
 
 	/**
 	 *	@private
@@ -188,7 +193,7 @@ function push()
 	//
 	//	just push, push ...
 	//
-	return m_cDoubleArrayCache.push
+	return _cDoubleArrayCache.push
 	(
 		{
 			tm	: new Date(),
@@ -201,29 +206,28 @@ function push()
 function _flush()
 {
 	var arrLogList;
-	var i;
-	var oItem;
 
 	//
 	//	extract logs
 	//
-	arrLogList = m_cDoubleArrayCache.extract();
+	arrLogList = _cDoubleArrayCache.extract();
 
 	//	...
 	if ( Array.isArray( arrLogList ) && arrLogList.length > 0 )
 	{
-		var LogsChunkToWrite = "";
-		arrLogList.forEach(function (item){
-			LogsChunkToWrite += item.tm.toString() + ": " + _util.format( item.args ) + "\n"
+		var sLogsChunkToWrite = "";
+		arrLogList.forEach(function ( oItem )
+		{
+			sLogsChunkToWrite += oItem.tm.toString() + ": " + _util.format( oItem.args ) + "\n"
 		});
-		m_cWriteStream.write(LogsChunkToWrite);
+		_cWriteStream.write( sLogsChunkToWrite );
 	}
 }
 
 function _handleProcessExit()
 {
-	clearInterval( m_nInterval );
-	m_nInterval	= null;
+	clearInterval( _nInterval );
+	_nInterval	= null;
 
 	//
 	//	call flush
@@ -238,10 +242,11 @@ function _handleProcessExit()
 
 
 
+
 /**
  *	start a interval
  */
-m_nInterval = setInterval
+_nInterval = setInterval
 (
 	_flush,
 	3 * 1000
