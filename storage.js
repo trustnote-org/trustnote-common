@@ -35,7 +35,7 @@ function readJoint(conn, unit, callbacks) {
 }
 
 function readJointDirectly(conn, unit, callbacks, bRetrying) {
-	console.log("\nreading unit "+unit);
+	console.log("reading unit "+unit);
 	if (min_retrievable_mci === null){
 		console.log("min_retrievable_mci not known yet");
 		setTimeout(function(){
@@ -1015,8 +1015,8 @@ function archiveJointAndDescendants(from_unit){
 				}
 			);
 		}
-		
-		console.log('will archive from unit '+from_unit);
+
+			console.log('will archive from unit '+from_unit);
 		var arrUnits = [from_unit];
 		addChildren([from_unit]);
 	},

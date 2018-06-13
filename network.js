@@ -1,51 +1,55 @@
 /*jslint node: true */
 "use strict";
-var WebSocket = process.browser ? global.WebSocket : require('ws');
-var socks = process.browser ? null : require('socks'+'');
-var WebSocketServer = WebSocket.Server;
-var crypto = require('crypto');
-var _ = require('lodash');
-var async = require('async');
-var db = require('./db.js');
-var constants = require('./constants.js');
-var storage = require('./storage.js');
-var myWitnesses = require('./my_witnesses.js');
-var joint_storage = require('./joint_storage.js');
-var validation = require('./validation.js');
-var ValidationUtils = require("./validation_utils.js");
-var writer = require('./writer.js');
-var conf = require('./conf.js');
-var mutex = require('./mutex.js');
-var catchup = require('./catchup.js');
-var privatePayment = require('./private_payment.js');
-var objectHash = require('./object_hash.js');
-var ecdsaSig = require('./signature.js');
-var eventBus = require('./event_bus.js');
-var light = require('./light.js');
-var breadcrumbs = require('./breadcrumbs.js');
-var mail = process.browser ? null : require('./mail.js'+'');
 
-var FORWARDING_TIMEOUT = 10*1000; // don't forward if the joint was received more than FORWARDING_TIMEOUT ms ago
-var STALLED_TIMEOUT = 5000; // a request is treated as stalled if no response received within STALLED_TIMEOUT ms
-var RESPONSE_TIMEOUT = 300*1000; // after this timeout, the request is abandoned
-var HEARTBEAT_TIMEOUT = conf.HEARTBEAT_TIMEOUT || 10*1000;
-var HEARTBEAT_RESPONSE_TIMEOUT = 60*1000;
-var PAUSE_TIMEOUT = 2*HEARTBEAT_TIMEOUT;
+var WebSocket		= process.browser ? global.WebSocket : require('ws');
+var socks		= process.browser ? null : require('socks'+'');
+var WebSocketServer	= WebSocket.Server;
+
+var _			= require('lodash');
+var crypto		= require('crypto');
+var async		= require('async');
+var db			= require('./db.js');
+var constants		= require('./constants.js');
+var storage		= require('./storage.js');
+var myWitnesses		= require('./my_witnesses.js');
+var joint_storage	= require('./joint_storage.js');
+var validation		= require('./validation.js');
+var ValidationUtils	= require("./validation_utils.js");
+var writer		= require('./writer.js');
+var conf		= require('./conf.js');
+var mutex		= require('./mutex.js');
+var catchup		= require('./catchup.js');
+var privatePayment	= require('./private_payment.js');
+var objectHash		= require('./object_hash.js');
+var ecdsaSig		= require('./signature.js');
+var eventBus		= require('./event_bus.js');
+var light		= require('./light.js');
+var breadcrumbs		= require('./breadcrumbs.js');
+var mail		= process.browser ? null : require('./mail.js'+'');
+var _profiler_ex	= require( './profilerex.js' );
+
+var FORWARDING_TIMEOUT		= 10 * 1000;		//	don't forward if the joint was received more than FORWARDING_TIMEOUT ms ago
+var STALLED_TIMEOUT		= 5000;			//	a request is treated as stalled if no response received within STALLED_TIMEOUT ms
+var RESPONSE_TIMEOUT		= 300 * 1000;		//	after this timeout, the request is abandoned
+var HEARTBEAT_TIMEOUT		= conf.HEARTBEAT_TIMEOUT || 10 * 1000;
+var HEARTBEAT_RESPONSE_TIMEOUT	= 60 * 1000;
+var PAUSE_TIMEOUT		= 2 * HEARTBEAT_TIMEOUT;
 
 var wss;
-var arrOutboundPeers = [];
-var assocConnectingOutboundWebsockets = {};
-var assocUnitsInWork = {};
-var assocRequestedUnits = {};
-var bCatchingUp = false;
-var bWaitingForCatchupChain = false;
-var bWaitingTillIdle = false;
-var coming_online_time = Date.now();
-var assocReroutedConnectionsByTag = {};
-var arrWatchedAddresses = []; // does not include my addresses, therefore always empty
-var last_hearbeat_wake_ts = Date.now();
-var peer_events_buffer = [];
-var assocKnownPeers = {};
+var arrOutboundPeers			= [];
+var assocConnectingOutboundWebsockets	= {};
+var assocUnitsInWork			= {};
+var assocRequestedUnits			= {};
+var bCatchingUp				= false;
+var bWaitingForCatchupChain		= false;
+var bWaitingTillIdle			= false;
+var coming_online_time			= Date.now();
+var assocReroutedConnectionsByTag	= {};
+var arrWatchedAddresses			= []; // does not include my addresses, therefore always empty
+var last_hearbeat_wake_ts		= Date.now();
+var peer_events_buffer			= [];
+var assocKnownPeers			= {};
+
 
 if (process.browser){ // browser
 	console.log("defining .on() on ws");
@@ -79,6 +83,7 @@ if (process.browser){ // browser
 var my_device_address;
 var objMyTempPubkeyPackage;
 
+
 function setMyDeviceProps(device_address, objTempPubkey){
 	my_device_address = device_address;
 	objMyTempPubkeyPackage = objTempPubkey;
@@ -86,13 +91,18 @@ function setMyDeviceProps(device_address, objTempPubkey){
 
 exports.light_vendor_url = null;
 
+
+
 // general network functions
 
 function sendMessage(ws, type, content) {
 	var message = JSON.stringify([type, content]);
 	if (ws.readyState !== ws.OPEN)
 		return console.log("readyState="+ws.readyState+' on peer '+ws.peer+', will not send '+message);
+
+	//###console.log("SENDING "+message+" to "+ws.peer);
 	console.log("SENDING "+message+" to "+ws.peer);
+
 	ws.send(message);
 }
 
@@ -514,9 +524,9 @@ function purgePeerEvents(){
     if (conf.storage !== 'sqlite') {
         return;
     }
-    console.log('will purge peer events');
+	console.log('will purge peer events');
     db.query("DELETE FROM peer_events WHERE event_date <= datetime('now', '-3 day')", function() {
-        console.log("deleted some old peer_events");
+	    console.log("deleted some old peer_events");
     });
 }
 
@@ -626,8 +636,7 @@ function requestFromLightVendor(command, params, responseHandler){
 }
 
 function printConnectionStatus(){
-	console.log(wss.clients.length+" incoming connections, "+arrOutboundPeers.length+" outgoing connections, "+
-		Object.keys(assocConnectingOutboundWebsockets).length+" outgoing connections being opened");
+	console.log(wss.clients.length+" incoming connections, "+arrOutboundPeers.length+" outgoing connections, " + Object.keys(assocConnectingOutboundWebsockets).length+" outgoing connections being opened");
 }
 
 function subscribe(ws){
@@ -721,8 +730,16 @@ function requestNewMissingJoints(ws, arrUnits){
 					arrNewUnits.push(unit);
 					cb();
 				},
-				ifKnown: function(){console.log("known"); cb();}, // it has just been handled
-				ifKnownUnverified: function(){console.log("known unverified"); cb();}, // I was already waiting for it
+				ifKnown: function()
+				{
+					console.log("known");
+					cb();
+				}, // it has just been handled
+				ifKnownUnverified: function()
+				{
+					console.log("known unverified");
+					cb();
+				}, // I was already waiting for it
 				ifKnownBad: function(error){
 					throw Error("known bad "+unit+": "+error);
 				}
@@ -921,7 +938,15 @@ function handleJoint(ws, objJoint, bSaved, callbacks){
 			ifOk: function(objValidationState, validation_unlock){
 				if (objJoint.unsigned)
 					throw Error("ifOk() unsigned");
-				writer.saveJoint(objJoint, objValidationState, null, function(){
+
+				//	...
+				_profiler_ex.begin( "#saveJoint" );
+
+				writer.saveJoint(objJoint, objValidationState, null, function()
+				{
+					_profiler_ex.end( "#saveJoint" );
+
+					//	...
 					validation_unlock();
 					callbacks.ifOk();
 					if (ws)
@@ -2451,7 +2476,9 @@ function onWebsocketMessage(message) {
 	if (ws.readyState !== ws.OPEN)
 		return;
 	
+	//###console.log('RECEIVED '+(message.length > 1000 ? message.substr(0,1000)+'...' : message)+' from '+ws.peer);
 	console.log('RECEIVED '+(message.length > 1000 ? message.substr(0,1000)+'...' : message)+' from '+ws.peer);
+
 	ws.last_ts = Date.now();
 	
 	try{
@@ -2473,8 +2500,8 @@ function onWebsocketMessage(message) {
 		case 'response':
 			return handleResponse(ws, content.tag, content.response);
 			
-		default: 
-			console.log("unknown type: "+message_type);
+		default:
+		console.log("unknown type: "+message_type);
 		//	throw Error("unknown type: "+message_type);
 	}
 }

@@ -36,14 +36,20 @@ function release(arrKeys){
 
 function exec(arrKeys, proc, next_proc){
 	arrLockedKeyArrays.push(arrKeys);
+
+	//###console.log("lock acquired", arrKeys);
 	console.log("lock acquired", arrKeys);
+
 	var bLocked = true;
 	proc(function(){
 		if (!bLocked)
 			throw Error("double unlock?");
 		bLocked = false;
 		release(arrKeys);
+
+		//###console.log("lock released", arrKeys);
 		console.log("lock released", arrKeys);
+
 		if (next_proc)
 			next_proc.apply(next_proc, arguments);
 		handleQueue();
@@ -51,7 +57,10 @@ function exec(arrKeys, proc, next_proc){
 }
 
 function handleQueue(){
+
+	//###console.log("handleQueue "+arrQueuedJobs.length+" items");
 	console.log("handleQueue "+arrQueuedJobs.length+" items");
+
 	for (var i=0; i<arrQueuedJobs.length; i++){
 		var job = arrQueuedJobs[i];
 		if (isAnyOfKeysLocked(job.arrKeys))
@@ -61,7 +70,10 @@ function handleQueue(){
 		exec(job.arrKeys, job.proc, job.next_proc);
 		i--; // we've just removed one item
 	}
+
+	//###console.log("handleQueue done "+arrQueuedJobs.length+" items");
 	console.log("handleQueue done "+arrQueuedJobs.length+" items");
+
 }
 
 function lock(arrKeys, proc, next_proc){

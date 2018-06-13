@@ -202,7 +202,7 @@ function updateMainChain(conn, last_unit, onDone){
 				}
 			);
 		}
-		
+
 		console.log("updateLatestIncludedMcIndex "+last_main_chain_index);
 		profiler.start();
 		conn.query("UPDATE units SET latest_included_mc_index=NULL WHERE main_chain_index>? OR main_chain_index IS NULL", [last_main_chain_index], function(res){
@@ -397,8 +397,8 @@ function updateMainChain(conn, last_unit, onDone){
 		if (onDone)
 			onDone();
 	}
-	
-	
+
+
 	console.log("\nwill update MC");
 	//finish();
 	goUpFromUnit(last_unit);

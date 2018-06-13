@@ -1,20 +1,24 @@
 /*jslint node: true */
 "use strict";
-var _ = require('lodash');
-var async = require('async');
-var constants = require("./constants.js");
-var conf = require("./conf.js");
-var storage = require('./storage.js');
-var db = require('./db.js');
-var objectHash = require("./object_hash.js");
-var mutex = require('./mutex.js');
-var main_chain = require("./main_chain.js");
-var Definition = require("./definition.js");
-var eventBus = require('./event_bus.js');
-var profiler = require('./profiler.js');
+var _					= require( 'lodash' );
+var async				= require( 'async' );
+var constants				= require( './constants.js' );
+var conf				= require( './conf.js' );
+var storage				= require( './storage.js' );
+var db					= require( './db.js' );
+var objectHash				= require( './object_hash.js' );
+var mutex				= require( './mutex.js' );
+var main_chain				= require( './main_chain.js' );
+var Definition				= require( './definition.js' );
+var eventBus				= require( './event_bus.js' );
+var profiler				= require( './profiler.js' );
+var _profiler_ex			= require( './profilerex.js' );
 
-var count_writes = 0;
-var count_units_in_prev_analyze = 0;
+var count_writes			= 0;
+var count_units_in_prev_analyze		= 0;
+
+
+
 
 function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 	var objUnit = objJoint.unit;
@@ -449,6 +453,14 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 						profiler.start();
 						conn.query(err ? "ROLLBACK" : "COMMIT", function(){
 							conn.release();
+
+							//
+							//	we have processed a unit
+							//	successful or failed
+							//
+							_profiler_ex.increase();
+
+							//	...
 							console.log((err ? (err+", therefore rolled back unit ") : "committed unit ")+objUnit.unit);
 							profiler.stop('write-commit');
 							profiler.increment();

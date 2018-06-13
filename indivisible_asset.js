@@ -300,7 +300,7 @@ function updateIndivisibleOutputsThatWereReceivedUnstable(conn, onDone){
 			onUpdated();
 		});
 	}
-	
+
 	console.log("updatePrivateIndivisibleOutputsThatWereReceivedUnstable starting");
 	conn.query(
 		"SELECT unit, message_index, sequence FROM outputs "+(conf.storage === 'sqlite' ? "INDEXED BY outputsIsSerial" : "")+" \n\

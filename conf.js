@@ -88,7 +88,9 @@ if (typeof window === 'undefined' || !window.cordova){ // desktop
 		}
 	}
 	else
+	{
 		console.log("I'm already at the root");
+	}
 
 	// merge conf from user home directory, if any.
 	// Note that it is json rather than js to avoid code injection

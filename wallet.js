@@ -443,7 +443,9 @@ function handleMessageFromHub(ws, json, device_pubkey, bIndirectCorrespondent, c
 								if (bParsingComplete)
 									checkIfAllValidated();
 								else
+								{
 									console.log('parsing incomplete yet');
+								}
 							});
 							cb();
 						}

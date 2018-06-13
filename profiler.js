@@ -50,9 +50,9 @@ function print(){
 		total += times[tag];
 	for (var tag in times){
 		console.log(
-			pad_right(tag+": ", 33) + 
-			pad_left(times[tag], 5) + ', ' + 
-			pad_left((times[tag]/count).toFixed(2), 5) + ' per unit, ' + 
+			pad_right(tag+": ", 33) +
+			pad_left(times[tag], 5) + ', ' +
+			pad_left((times[tag]/count).toFixed(2), 5) + ' per unit, ' +
 			pad_left((100*times[tag]/total).toFixed(2), 5) + '%'
 		);
 	}

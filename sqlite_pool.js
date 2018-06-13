@@ -109,7 +109,10 @@ module.exports = function(db_name, MAX_CONNECTIONS, bReadOnly){
 					//console.log("changes="+this.changes+", affected="+result.affectedRows);
 					var consumed_time = Date.now() - start_ts;
 					if (consumed_time > 25)
+					{
 						console.log("long query took "+consumed_time+"ms:\n"+new_args.filter(function(a, i){ return (i<new_args.length-1); }).join(", ")+"\nload avg: "+require('os').loadavg().join(', '));
+					}
+
 					last_arg(result);
 				});
 				
@@ -362,7 +365,7 @@ function getDatabaseDirPath(){
 
 
 function createDatabaseIfNecessary(db_name, onDbReady){
-	
+
 	console.log('createDatabaseIfNecessary '+db_name);
 	var initial_db_filename = 'initial.' + db_name;
 

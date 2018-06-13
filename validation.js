@@ -1,35 +1,37 @@
 /*jslint node: true */
 "use strict";
-var async = require('async');
-var storage = require('./storage.js');
-var graph = require('./graph.js');
-var main_chain = require('./main_chain.js');
-var paid_witnessing = require("./paid_witnessing.js");
-var headers_commission = require("./headers_commission.js");
-var mc_outputs = require("./mc_outputs.js");
-var objectHash = require("./object_hash.js");
-var objectLength = require("./object_length.js");
-var db = require('./db.js');
-var chash = require('./chash.js');
-var mutex = require('./mutex.js');
-var constants = require("./constants.js");
-var ValidationUtils = require("./validation_utils.js");
-var Definition = require("./definition.js");
-var conf = require('./conf.js');
-var profiler = require('./profiler.js');
-var breadcrumbs = require('./breadcrumbs.js');
+var async			= require('async');
+var storage			= require('./storage.js');
+var graph			= require('./graph.js');
+var main_chain			= require('./main_chain.js');
+var paid_witnessing		= require("./paid_witnessing.js");
+var headers_commission		= require("./headers_commission.js");
+var mc_outputs			= require("./mc_outputs.js");
+var objectHash			= require("./object_hash.js");
+var objectLength		= require("./object_length.js");
+var db				= require('./db.js');
+var chash			= require('./chash.js');
+var mutex			= require('./mutex.js');
+var constants			= require("./constants.js");
+var ValidationUtils		= require("./validation_utils.js");
+var Definition			= require("./definition.js");
+var conf			= require('./conf.js');
+var profiler			= require('./profiler.js');
+var breadcrumbs			= require('./breadcrumbs.js');
+var _profiler_ex		= require( './profilerex.js' );
 
-var MAX_INT32 = Math.pow(2, 31) - 1;
 
-var hasFieldsExcept = ValidationUtils.hasFieldsExcept;
-var isNonemptyString = ValidationUtils.isNonemptyString;
-var isStringOfLength = ValidationUtils.isStringOfLength;
-var isInteger = ValidationUtils.isInteger;
-var isNonnegativeInteger = ValidationUtils.isNonnegativeInteger;
-var isPositiveInteger = ValidationUtils.isPositiveInteger;
-var isNonemptyArray = ValidationUtils.isNonemptyArray;
-var isValidAddress = ValidationUtils.isValidAddress;
-var isValidBase64 = ValidationUtils.isValidBase64;
+var MAX_INT32			= Math.pow(2, 31) - 1;
+
+var hasFieldsExcept		= ValidationUtils.hasFieldsExcept;
+var isNonemptyString		= ValidationUtils.isNonemptyString;
+var isStringOfLength		= ValidationUtils.isStringOfLength;
+var isInteger			= ValidationUtils.isInteger;
+var isNonnegativeInteger	= ValidationUtils.isNonnegativeInteger;
+var isPositiveInteger		= ValidationUtils.isPositiveInteger;
+var isNonemptyArray		= ValidationUtils.isNonemptyArray;
+var isValidAddress		= ValidationUtils.isValidAddress;
+var isValidBase64		= ValidationUtils.isValidBase64;
 
 
 function hasValidHashes(objJoint){
@@ -48,7 +50,7 @@ function validate(objJoint, callbacks) {
 		throw Error("no unit object");
 	if (!objUnit.unit)
 		throw Error("no unit");
-	
+
 	console.log("\nvalidating joint identified by unit "+objJoint.unit.unit);
 	
 	if (!isStringOfLength(objUnit.unit, constants.HASH_LENGTH))
@@ -159,7 +161,10 @@ function validate(objJoint, callbacks) {
 		if ("timestamp" in objUnit && !isPositiveInteger(objUnit.timestamp))
 			return callbacks.ifJointError("bad timestamp");
 	}
-	
+
+	//	...
+	_profiler_ex.begin( "#validate" );
+
 	mutex.lock(arrAuthorAddresses, function(unlock){
 		
 		var conn = null;
@@ -220,6 +225,10 @@ function validate(objJoint, callbacks) {
 				profiler.stop('validation-messages');
 				if(err){
 					conn.query("ROLLBACK", function(){
+
+						//	...
+						_profiler_ex.end( "#validate" );
+
 						conn.release();
 						unlock();
 						if (typeof err === "object"){
@@ -241,6 +250,11 @@ function validate(objJoint, callbacks) {
 				else{
 					profiler.start();
 					conn.query("COMMIT", function(){
+
+						//	...
+						_profiler_ex.end( "#validate" );
+
+						//	...
 						conn.release();
 						profiler.stop('validation-commit');
 						if (objJoint.unsigned){
@@ -787,7 +801,9 @@ function validateAuthor(conn, objAuthor, objUnit, objValidationState, callback){
 					function(row, cb){
 						graph.determineIfIncludedOrEqual(conn, row.unit, objUnit.parent_units, function(bIncluded){
 							if (bIncluded)
+							{
 								console.log("checkNoPendingChangeOfDefinitionChash: unit "+row.unit+" is included");
+							}
 							bIncluded ? cb("found") : cb();
 						});
 					},
@@ -823,7 +839,9 @@ function validateAuthor(conn, objAuthor, objUnit, objValidationState, callback){
 					function(row, cb){
 						graph.determineIfIncludedOrEqual(conn, row.unit, objUnit.parent_units, function(bIncluded){
 							if (bIncluded)
+							{
 								console.log("checkNoPendingDefinition: unit "+row.unit+" is included");
+							}
 							bIncluded ? cb("found") : cb();
 						});
 					},

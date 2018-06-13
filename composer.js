@@ -191,7 +191,10 @@ function pickDivisibleCoinsForAmount(conn, objAsset, arrAddresses, last_ball_mci
 			},
 			function(err){
 				if (!err)
+				{
 					console.log(arrAddresses+" "+type+": got only "+total_amount+" out of required "+required_amount);
+				}
+
 				(err === "found") ? onDone(arrInputsWithProofs, total_amount) : onStillNotEnough();
 			}
 		);
