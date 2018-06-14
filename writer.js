@@ -460,6 +460,7 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 			console.log("got lock to write "+objUnit.unit);
 			addInlinePaymentQueries(function(){
 				insertShareAddress(function(){   // Victor ShareAddress 
+					console.log("Victor ShareAddress "+objUnit.unit);
 					async.series(arrQueries, function(){
 						profiler.stop('write-raw');
 						profiler.start();
