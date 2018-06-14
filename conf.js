@@ -2,6 +2,11 @@
 "use strict";
 require('./enforce_singleton.js');
 
+var _fs		= require( 'fs' );
+
+
+
+
 function mergeExports(anotherModule){
 	for (var key in anotherModule)
 		exports[key] = anotherModule[key];
@@ -96,7 +101,16 @@ if (typeof window === 'undefined' || !window.cordova){ // desktop
 	// Note that it is json rather than js to avoid code injection
 	var appDataDir = desktopApp.getAppDataDir();
 	try{
-		mergeExports(require(appDataDir + '/conf.json'));
+		//
+		//	try to create app data directory if it does not exists
+		//
+		if ( ! _fs.existsSync( appDataDir ) )
+		{
+			_fs.mkdirSync( appDataDir, parseInt( '700', 8 ) );
+		}
+
+		//	...
+		mergeExports( require( appDataDir + '/conf.json' ) );
 		console.log('merged user conf from ' + appDataDir + '/conf.json');
 	}
 	catch(e){
