@@ -1238,6 +1238,10 @@ function sendMultiPayment(opts, handleResult)
 						indivisibleAsset.composeAndSaveMinimalIndivisibleAssetPaymentJoint(params);
 					}
 					else{ // divisible
+						// if(opts.candyOutput && opts.candyOutput.length > 1) {
+						if(opts.candyOutput) {
+							params.base_outputs = opts.candyOutput;
+						}
 						divisibleAsset.composeAndSaveMinimalDivisibleAssetPaymentJoint(params);
 					}
 				});
