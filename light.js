@@ -149,7 +149,8 @@ function buildLastMileOfProofChain(mci, unit, arrBalls, onDone){
 function addSharedAddressesOfWallet(arrAddressList, handleAddedSharedAddresses){
 	if (!arrAddressList || arrAddressList.length === 0 )
 		return handleAddedSharedAddresses([]);
-	db.query("SELECT DISTINCT shared_address FROM shared_address_signing_paths WHERE address IN(?)", [arrAddressList], function(rows){
+	var strAddressList = arrAddressList.map(db.escape).join(', ');
+	db.query("SELECT DISTINCT shared_address FROM shared_address_signing_paths WHERE address IN("+strAddressList+")", function(rows){
 		if (rows.length === 0)
 			return handleAddedSharedAddresses(arrAddressList);
 		var arrSharedAddresses = rows.map(function(row){ return row.shared_address; });
