@@ -27,6 +27,19 @@ function parseUri(uri, callbacks){
 	}
 	var value = arrMatches[1];
 
+
+	// 是否是 T-code 的领取
+	if(value.indexOf('tcode-') == 0 && value.length == 22){
+		var tempTcode = value.replace('tcode-','');
+		if(tempTcode.length != 16){
+			return;
+		}
+		objRequest.type = "tcode";
+		objRequest.to_address = tempTcode;
+		return callbacks.ifOk(objRequest);
+	}
+
+
 	// observed_wallet to pay
 	var arrPairingMatches = value;
 	var flag = (/^\{.*\}$/).test(arrPairingMatches);
