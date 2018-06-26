@@ -528,14 +528,15 @@ CREATE TABLE my_witnesses (
 
 CREATE TABLE tcode (
 	wallet CHAR(44) NOT NULL,
+	asset CHAR(44) NOT NULL DEFAULT base,
+	asset_name CHAR(44) NOT NULL DEFAULT MN,
 	num CHAR(16) NOT NULL,
-	code CHAR(16) NOT NUll,
+	code CHAR(16) NOT NULL,
+	address CHAR(32),
 	amount BIGINT NOT NULL,
 	is_spent TINYINT NOT NULL DEFAULT 0,
-	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	UNIQUE (wallet, num, code),
-	FOREIGN KEY (wallet) REFERENCES wallets(wallet)
-);
+	creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
 
 -- --------------------
 -- hub tables
