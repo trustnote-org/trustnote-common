@@ -40,6 +40,24 @@ function parseUri(uri, callbacks){
 	}
 
 
+	// 是否是 login
+	if(value.indexOf('login-') == 0){
+		var tempLogin = value.replace('login-','');
+		objRequest.type = "login";
+		objRequest.loginMsg = tempLogin;
+		return callbacks.ifOk(objRequest);
+	}
+
+
+	// 是否是 sendAssets
+	if(value.indexOf('payment-') == 0){
+		var tempSend = value.replace('payment-','');
+		objRequest.type = "payment";
+		objRequest.sendAssetMsg = tempSend;
+		return callbacks.ifOk(objRequest);
+	}
+
+
 	// observed_wallet to pay
 	var arrPairingMatches = value;
 	var flag = (/^\{.*\}$/).test(arrPairingMatches);
