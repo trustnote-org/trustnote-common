@@ -241,12 +241,24 @@ CREATE TABLE equihash (
 );
 CREATE INDEX byRndNum1 ON equihash(rnd_num);
 
+
+
 CREATE TABLE attestor (
 	rnd_num UNSIGNED BIG INT NOT NULL,
 	address char(32) NOT Null,
 	mci INT NULL
 );
 CREATE INDEX byRndNum2 ON attestor(rnd_num);
+
+CREATE TABLE deposit (
+	unit CHAR(44) NOT NULL PRIMARY KEY,
+	message_index TINYINT NOT NULL,
+	address char(32) NOT Null,
+	lock_time INT NOT NULL,
+	payout_addr char(32) NOT NULL,
+	reward_addr char(32) NOT NULL,
+	FOREIGN KEY (unit) REFERENCES units(unit)
+);
 
 
 CREATE TABLE attestations (
@@ -309,7 +321,7 @@ CREATE TABLE inputs (
 	asset CHAR(44) NULL,
 	denomination INT NOT NULL DEFAULT 1,
 	is_unique TINYINT NULL DEFAULT 1,
-	type TEXT CHECK (type IN('transfer','headers_commission','witnessing','issue')) NOT NULL,
+	type TEXT CHECK (type IN('transfer','headers_commission','witnessing','issue','coinbase')) NOT NULL,
 	src_unit CHAR(44) NULL, -- transfer
 	src_message_index TINYINT NULL, -- transfer
 	src_output_index TINYINT NULL, -- transfer

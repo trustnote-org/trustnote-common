@@ -14,7 +14,7 @@ var eventBus = require('./event_bus.js');
 var profiler = require('./profiler.js');
 var breadcrumbs = require('./breadcrumbs.js');
 var conf = require('./conf.js');
-
+require('./round_change.js');
 
 function updateMainChain(conn, last_unit, onDone) {
 	// if unit === null, read free balls

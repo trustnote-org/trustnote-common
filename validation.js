@@ -982,6 +982,8 @@ function validateMessage(conn, objMessage, message_index, objUnit, objValidation
 
 
 function checkForDoublespends(conn, type, sql, arrSqlArgs, objUnit, objValidationState, onAcceptedDoublespends, cb){
+	if(type==='coinbase')
+		onAcceptedDoublespends(cb);
 	conn.query(
 		sql, 
 		arrSqlArgs,
@@ -1105,6 +1107,18 @@ function validateInlinePayload(conn, objMessage, message_index, objUnit, objVali
 			if (typeof payload.seed !== "string")
 				return callback("seed must be string");
 			if (hasFieldsExcept(payload, ["rnd_num", "solution","seed","difficulty"]))
+				return callback("unknown fields in "+objMessage.app);
+			return callback();
+		case "deposit":
+			if (typeof payload.lock_time !== "number")
+				return callback("lock_time must be number");
+			if (typeof payload.address !== "string")
+				return callback("address must be string");
+			if (typeof payload.payout_addr !== "string")
+				return callback("payout_addr must be string");
+			if (typeof payload.reward_addr !== "string")
+				return callback("reward_addr must be string");
+			if (hasFieldsExcept(payload, ["address", "lock_time","payout_addr","reward_addr"]))
 				return callback("unknown fields in "+objMessage.app);
 			return callback();
 		case "vote":
@@ -1346,6 +1360,7 @@ function validatePaymentInputsAndOutputs(conn, payload, objAsset, message_index,
 		return callback("found "+count_open_outputs+" open outputs, expected 1");
 
 	var bIssue = false;
+	var bCoinbase=false;
 	var bHaveHeadersComissions = false;
 	var bHaveWitnessings = false;
 	
@@ -1525,7 +1540,84 @@ function validatePaymentInputsAndOutputs(conn, payload, objAsset, message_index,
 						checkInputDoubleSpend(cb);
 					// attestations and issued_by_definer_only already checked before
 					break;
-					
+					case "coinbase":
+					//	if (objAsset)
+					//		profiler2.start();
+						if (input_index !== 0)
+							return cb("coinbase must come first");
+						if (hasFieldsExcept(input, ["type", "address", "amount", "serial_number"]))
+							return cb("unknown fields in issue input");
+						if (!isPositiveInteger(input.amount))
+							return cb("amount must be positive");
+						if (!isPositiveInteger(input.serial_number))
+							return cb("serial_number must be positive");
+						if (!objAsset || objAsset.cap){
+							if (input.serial_number !== 1)
+								return cb("for capped asset serial_number must be 1");
+						}
+						if (bCoinbase)
+							return cb("only one coinbase per message allowed");
+							bCoinbase = true;
+						
+						var address = null;
+						if (arrAuthorAddresses.length === 1){
+							if ("address" in input)
+								return cb("when single-authored, must not put address in issue input");
+							address = arrAuthorAddresses[0];
+						}
+						else{
+							if (typeof input.address !== "string")
+								return cb("when multi-authored, must put address in issue input");
+							if (arrAuthorAddresses.indexOf(input.address) === -1)
+								return cb("issue input address "+input.address+" is not an author");
+							address = input.address;
+						}
+						
+						arrInputAddresses = [address];
+						if (objAsset){
+							if (objAsset.cap && !objAsset.fixed_denominations && input.amount !== objAsset.cap)
+								return cb("issue must be equal to cap");
+						}
+						else{
+							// if (!storage.isGenesisUnit(objUnit.unit))
+							// 	return cb("only genesis can issue base asset");
+							// if (input.amount !== constants.TOTAL_WHITEBYTES)
+							// 	return cb("issue must be equal to cap");
+						}
+						total_input += input.amount;
+						
+						var input_key = (payload.asset || "base") + "-" + denomination + "-" + address + "-" + input.serial_number;
+						if (objValidationState.arrInputKeys.indexOf(input_key) >= 0)
+							return callback("input "+input_key+" already used");
+						objValidationState.arrInputKeys.push(input_key);
+						doubleSpendWhere = "type='coinbase'";
+						doubleSpendVars = [];
+						if (objAsset && objAsset.fixed_denominations){
+							doubleSpendWhere += " AND denomination=?";
+							doubleSpendVars.push(denomination);
+						}
+						if (objAsset){
+							doubleSpendWhere += " AND serial_number=?";
+							doubleSpendVars.push(input.serial_number);
+						}
+						if (objAsset && !objAsset.issued_by_definer_only){
+							doubleSpendWhere += " AND address=?";
+							doubleSpendVars.push(address);
+						}
+					//	if (objAsset)
+					//		profiler2.stop('validate issue');
+						/*if (objAsset && objAsset.fixed_denominations){
+							validateIndivisibleIssue(input, function(err){
+								if (err)
+									return cb(err);
+								checkInputDoubleSpend(cb);
+							});
+						}
+						else
+							checkInputDoubleSpend(cb);*/
+						// attestations and issued_by_definer_only already checked before
+						cb();
+						break;
 				case "transfer":
 				//	if (objAsset)
 				//		profiler2.start();

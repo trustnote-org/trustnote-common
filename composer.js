@@ -38,7 +38,6 @@ var ADDRESS_SIZE = 32;
 var hash_placeholder = "--------------------------------------------"; // 256 bits (32 bytes) base64: 44 bytes
 var sig_placeholder = "----------------------------------------------------------------------------------------"; // 88 bytes
 
-
 var bGenesis = false;
 exports.setGenesis = function(_bGenesis){ bGenesis = _bGenesis; };
 
@@ -307,14 +306,29 @@ function composePaymentAndTextJoint(arrSigningAddresses, arrPayingAddresses, arr
 	});
 }
 
+function composeCoinbase(arrFromAddresses,arrOutputs, signer, callbacks){
+	composeJoint({
+		bCoinbase:true,
+		paying_addresses: arrFromAddresses, 
+		outputs: arrOutputs, 
+		signer: signer, 
+		callbacks: callbacks
+	});
+}
+
 function composeEquihashJoint(from_address, rnd_num,seed,difficulty,solution, signer, callbacks){
-	var equihash_data = {rnd_num: rnd_num, seed: seed,difficulty:difficulty,solution:solution};
+	let equihash_data = {rnd_num: rnd_num, seed: seed,difficulty:difficulty,solution:solution};
 	composeContentJoint(from_address, "equihash", equihash_data, signer, callbacks);
 }
 
 function composeTrustmeJoint(from_address, rnd_num,solution, signer, callbacks){
-	var trustme_data = {rnd_num: rnd_num, solution: solution};
+	let trustme_data = {rnd_num: rnd_num, solution: solution};
 	composeContentJoint(from_address, "trustme", trustme_data, signer, callbacks);
+}
+
+function composeDepositJoint(from_address, lock_time,payout_addr,reward_addr,signer, callbacks){
+	let deposit_data = {address:from_address,lock_time: lock_time, payout_addr: payout_addr,reward_addr:reward_addr};
+	composeContentJoint(from_address, "deposit", deposit_data, signer, callbacks);
 }
 
 function composeContentJoint(from_address, app, payload, signer, callbacks){
@@ -389,7 +403,9 @@ function composeJoint(params){
 	// 	});
 	// 	return;
 	// }
-	
+
+	let bCoinbase=params.bCoinbase?params.bCoinbase:false;
+
 	if (conf.bLight && !params.lightProps){
 		var network = require('./network.js');
 		network.requestFromLightVendor(
@@ -675,6 +691,14 @@ function composeJoint(params){
 				total_input = constants.TOTAL_WHITEBYTES;
 				return cb();
 			}
+			if (bCoinbase){
+				objPaymentMessage.payload.inputs = [{type: "coinbase", serial_number: 1, amount: 100}];
+				objUnit.payload_commission = objectLength.getTotalPayloadSize(objUnit);
+				var total=total_amount + objUnit.headers_commission + objUnit.payload_commission+1;
+				objPaymentMessage.payload.inputs = [{type: "coinbase", serial_number: 1, amount: total}];
+				total_input = total;
+				return cb();
+			}
 			if (params.inputs){ // input coins already selected
 				if (!params.input_amount)
 					throw Error('inputs but no input_amount');
@@ -720,6 +744,15 @@ function composeJoint(params){
 					error: "not enough spendable funds from "+arrPayingAddresses+" for fees"
 				});
 			}
+			/*if(change===0&&!params.send_all)
+				throw Error("change="+change+", params="+JSON.stringify(params));
+			if(change<0){
+				return handleError({ 
+					error_code: "NOT_ENOUGH_FUNDS", 
+					error: "not enough spendable funds from "+arrPayingAddresses+" for fees"
+				});
+			}*/
+
 			objPaymentMessage.payload.outputs[0].amount = change;
 			objPaymentMessage.payload.outputs.sort(sortOutputs);
 			objPaymentMessage.payload_hash = objectHash.getBase64Hash(objPaymentMessage.payload);
@@ -973,3 +1006,5 @@ exports.pickDivisibleCoinsForAmount = pickDivisibleCoinsForAmount;
 
 exports.composeTrustmeJoint=composeTrustmeJoint
 exports.composeEquihashJoint=composeEquihashJoint
+exports.composeCoinbase=composeCoinbase;
+exports.composeDepositJoint=composeDepositJoint;

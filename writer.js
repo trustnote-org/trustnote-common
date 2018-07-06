@@ -141,6 +141,13 @@ function saveJoint(objJoint, objValidationState, preCommitCallback, onDone) {
 							conn.addQuery(arrQueries, "INSERT INTO votes (unit, message_index, poll_unit, choice) VALUES (?,?,?,?)", 
 								[objUnit.unit, i, vote.unit, vote.choice]);
 							break;
+						case "deposit":
+							if(objUnit.authors.length>1)
+									throw Error('more than one author in equihash message');
+							var deposit = message.payload;
+							conn.addQuery(arrQueries, "INSERT INTO deposit (unit,message_index,address,lock_time,payout_addr, reward_addr) VALUES (?,?,?,?,?,?)", 
+								[objUnit.unit, i,objUnit.authors[0].address,deposit.lock_time,deposit.payout_addr,deposit.reward_addr]);
+							break;
 						case "equihash":
 							if(objUnit.authors.length>1)
 									throw Error('more than one author in equihash message');

@@ -294,7 +294,17 @@ function readJointDirectly(conn, unit, callbacks, bRetrying) {
 											}
 										);
 										break;
-
+										case "deposit":
+										conn.query(
+											"SELECT address,lock_time,payout_addr,reward_addr FROM deposit WHERE unit=? AND message_index=?", [unit, message_index], 
+											function(deposit_rows){
+												if (deposit_rows.length !== 1)
+													throw Error("no deposit or too many?");
+												objMessage.payload = {address: deposit_rows[0].address, lock_time: deposit_rows[0].lock_time,payout_addr:deposit_rows[0].payout_addr,reward_addr:deposit_rows[0].reward_addr};
+												addSpendProofs();
+											}
+										);
+										break;
 										case "asset":
 											conn.query(
 												"SELECT cap, is_private, is_transferrable, auto_destroy, fixed_denominations, \n\
