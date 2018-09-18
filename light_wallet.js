@@ -9,15 +9,15 @@ var light = require('./light.js');
 var eventBus = require('./event_bus.js');
 
 var RECONNECT_TO_LIGHT_VENDOR_PERIOD = 60 * 1000;
-var refreshLightTimeoutDoneCount = 0;
+var changeLightVender = false;
+var timerFlag;
 
 function setLightVendorHost(light_vendor_host) {
 	network.light_vendor_url = conf.WS_PROTOCOL + light_vendor_host; // for now, light vendor is also a hub
 	if (conf.bLight) {
-		// refreshLightClientHistory();
+		timerFlag && clearInterval(timerFlag);
+		timerFlag = setInterval(reconnectToLightVendor, RECONNECT_TO_LIGHT_VENDOR_PERIOD);
 		connecteToLightVendor();
-		setInterval(reconnectToLightVendor, RECONNECT_TO_LIGHT_VENDOR_PERIOD);
-		// eventBus.on('connected', reconnectToLightVendor);
 	}
 }
 
@@ -27,11 +27,19 @@ function connecteToLightVendor() {
 	if (!network.light_vendor_url)
 		return console.log('refreshLightClientHistory called too early: light_vendor_url not set yet');
 	network.findOutboundPeerOrConnect(network.light_vendor_url, function (err, ws) {
-		var finish = function (msg) {
-			if (msg) {
-				refreshLightTimeoutDoneCount++;
-				if (refreshLightTimeoutDoneCount < 6)
-					eventBus.emit('refresh_light_timeout');
+		var finish = function (err) {
+			if (err) {
+				if (!changeLightVender) {
+					eventBus.emit('refresh_light_timeout', function (msg) {
+						console.log("changeLightVender: " + msg);
+						if (!msg) {
+							setTimeout(connecteToLightVendor, 5000);
+							return;
+						};
+						changeLightVender = true;
+						setLightVendorHost(msg);
+					});
+				}
 			}
 			if (ws)
 				ws.bRefreshingHistory = false;
@@ -110,11 +118,20 @@ function refreshLightClientHistory() {
 		return console.log('refreshLightClientHistory called too early: light_vendor_url not set yet');
 	eventBus.emit('refresh_light_started');
 	network.findOutboundPeerOrConnect(network.light_vendor_url, function onLocatedLightVendor(err, ws) {
-		var finish = function (msg) {
-			if (msg) {
-				refreshLightTimeoutDoneCount++;
-				if (refreshLightTimeoutDoneCount < 6)
-					eventBus.emit('refresh_light_timeout');
+		var finish = function (err) {
+			if (err) {
+				if (!changeLightVender) {
+					eventBus.emit('refresh_light_timeout', function (msg) {
+						console.log("changeLightVender: " + msg);
+						if (!msg) {
+							setTimeout(connecteToLightVendor, 5000);
+							return;
+						};
+						changeLightVender = true;
+						setLightVendorHost(msg);
+					});
+				}
+				return;
 			}
 			if (ws)
 				ws.bRefreshingHistory = false;
