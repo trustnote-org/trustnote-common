@@ -2,7 +2,7 @@
   "name": "trustnote-common",
   "description": "Trustnote Common",
   "author": "Trustnote",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "keywords": [
     "trustnote",
     "multisignature"
