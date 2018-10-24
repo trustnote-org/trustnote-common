@@ -839,11 +839,10 @@ function getSavingCallbacks(callbacks){
 	return {
 		ifError: callbacks.ifError,
 		ifNotEnoughFunds: callbacks.ifNotEnoughFunds,
-		ifOkUnSign: callbacks.ifOk,
 		ifOk: function(objJoint, assocPrivatePayloads, composer_unlock){
 			var objUnit = objJoint.unit;
 			var unit = objUnit.unit;
-			if(callbacks.ifOkUnSign) {
+			if(callbacks.ifOkUnSign) { // check if need to return unsigned joint, only UTS
 				composer_unlock();
 				callbacks.ifOkUnSign(objJoint);
 				return;
