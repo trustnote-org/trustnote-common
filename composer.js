@@ -752,7 +752,7 @@ function composeJoint(params){
 					// Victor ShareAddress 
 					if (params.arrShareDefinition)
 						objJoint.arrShareDefinition = params.arrShareDefinition;
-					//profiler.stop('compose');
+					//profiler.stop('compose')
 					callbacks.ifOk(objJoint, assocPrivatePayloads, unlock_callback);
 				}
 			);
@@ -839,9 +839,15 @@ function getSavingCallbacks(callbacks){
 	return {
 		ifError: callbacks.ifError,
 		ifNotEnoughFunds: callbacks.ifNotEnoughFunds,
+		ifOkUnSign: callbacks.ifOk,
 		ifOk: function(objJoint, assocPrivatePayloads, composer_unlock){
 			var objUnit = objJoint.unit;
 			var unit = objUnit.unit;
+			if(callbacks.ifOkUnSign) {
+				composer_unlock();
+				callbacks.ifOkUnSign(objJoint);
+				return;
+			}
 			validation.validate(objJoint, {
 				ifUnitError: function(err){
 					composer_unlock();
