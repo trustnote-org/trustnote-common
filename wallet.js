@@ -1178,9 +1178,9 @@ function sendMultiPayment(opts, handleResult)
 					ifError: function(err){
 						handleResult(err);
 					},
-					ifOkUnSign: function(objJoint) {
+					ifOkUnSign: opts.signer ? function(objJoint) {
 						handleResult(null, objJoint);
-					},
+					} : null,
 					// for asset payments, 2nd argument is array of chains of private elements
 					// for base asset, 2nd argument is assocPrivatePayloads which is null
 					ifOk: function(objJoint, arrChainsOfRecipientPrivateElements, arrChainsOfCosignerPrivateElements){
