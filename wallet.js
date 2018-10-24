@@ -1170,13 +1170,16 @@ function sendMultiPayment(opts, handleResult)
 				available_paying_addresses: arrFundedAddresses, // forces 'minimal' for payments from shared addresses too, it doesn't hurt
 				signing_addresses: arrAllSigningAddresses,
 				messages: messages, 
-				signer: signer, 
+				signer: opts.signer ? opts.signer : signer,
 				callbacks: {
 					ifNotEnoughFunds: function(err){
 						handleResult(err);
 					},
 					ifError: function(err){
 						handleResult(err);
+					},
+					ifOkUnSign: function(objJoint) {
+						handleResult(null, objJoint);
 					},
 					// for asset payments, 2nd argument is array of chains of private elements
 					// for base asset, 2nd argument is assocPrivatePayloads which is null
