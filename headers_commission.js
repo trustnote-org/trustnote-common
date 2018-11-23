@@ -27,7 +27,7 @@ function calcHeadersCommissions(conn, onDone){
 					LIMIT 1";
 				// headers commissions to single unit author
 				conn.query(
-					"INSERT INTO headers_commission_contributions (unit, address, amount) \n\
+					"INSERT IGNORE INTO headers_commission_contributions (unit, address, amount) \n\
 					SELECT punits.unit, address, punits.headers_commission AS hc \n\
 					FROM units AS chunits \n\
 					JOIN unit_authors USING(unit) \n\
@@ -148,14 +148,26 @@ function calcHeadersCommissions(conn, onDone){
 			} // sqlite
 		},
 		function(cb){
-			conn.query(
-				"INSERT INTO headers_commission_outputs (main_chain_index, address, amount) \n\
-				SELECT main_chain_index, address, SUM(amount) FROM headers_commission_contributions JOIN units USING(unit) \n\
-				WHERE main_chain_index>? \n\
-				GROUP BY main_chain_index, address",
-				[since_mc_index],
-				function(){ cb(); }
-			);
+			if (conf.storage === 'mysql'){
+				conn.query(
+					"INSERT IGNORE INTO headers_commission_outputs (main_chain_index, address, amount) \n\
+					SELECT main_chain_index, address, SUM(amount) FROM headers_commission_contributions JOIN units USING(unit) \n\
+					WHERE main_chain_index>? \n\
+					GROUP BY main_chain_index, address",
+					[since_mc_index],
+					function(){ cb(); }
+				);
+			}
+			else{
+				conn.query(
+					"INSERT INTO headers_commission_outputs (main_chain_index, address, amount) \n\
+					SELECT main_chain_index, address, SUM(amount) FROM headers_commission_contributions JOIN units USING(unit) \n\
+					WHERE main_chain_index>? \n\
+					GROUP BY main_chain_index, address",
+					[since_mc_index],
+					function(){ cb(); }
+				);
+			}
 		},
 		function(cb){
 			conn.query("SELECT MAX(main_chain_index) AS max_spendable_mci FROM headers_commission_outputs", function(rows){
