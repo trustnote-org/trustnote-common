@@ -91,7 +91,7 @@ exports.light_vendor_url = null;
 function sendMessage(ws, type, content) {
 	var message = JSON.stringify([type, content]);
 	if (ws.readyState !== ws.OPEN)
-		return console.log("readyState="+ws.readyState+' on peer '+ws.peer+', will not send '+message);
+		return console.log("readyState="+ws.readyState+' on peer '+ws.peer+', will not send '+(message.length > 1000 ? message.substr(0,1000)+'...' : message));
 	console.log('SENDING '+(message.length > 1000 ? message.substr(0,1000)+'...' : message)+' to '+ws.peer);
 	ws.send(message);
 }
